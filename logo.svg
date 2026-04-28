@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="35%" r="80%">
+      <stop offset="0%" stop-color="#e8842c"/>
+      <stop offset="55%" stop-color="#a23814"/>
+      <stop offset="100%" stop-color="#2e0a04"/>
+    </radialGradient>
+    <linearGradient id="lens" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#222"/>
+      <stop offset="100%" stop-color="#000"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="400" height="400" rx="64" fill="url(#bg)"/>
+
+  <!-- Ears -->
+  <ellipse cx="113" cy="148" rx="44" ry="46" fill="#0e0608"/>
+  <ellipse cx="287" cy="148" rx="44" ry="46" fill="#0e0608"/>
+  <ellipse cx="113" cy="158" rx="22" ry="24" fill="#5a1c0c"/>
+  <ellipse cx="287" cy="158" rx="22" ry="24" fill="#5a1c0c"/>
+
+  <!-- Head -->
+  <path d="M 68 222 C 68 138, 130 102, 200 102 C 270 102, 332 138, 332 222 C 332 308, 280 350, 200 350 C 120 350, 68 308, 68 222 Z" fill="#0e0608"/>
+
+  <!-- Snout -->
+  <ellipse cx="200" cy="278" rx="74" ry="52" fill="#2a1408"/>
+  <path d="M 173 242 Q 200 224 227 242 Q 232 264 200 270 Q 168 264 173 242 Z" fill="#000"/>
+
+  <!-- Mouth + fangs -->
+  <path d="M 200 285 L 200 312" stroke="#000" stroke-width="5" stroke-linecap="round"/>
+  <path d="M 173 312 Q 200 330 227 312" stroke="#000" stroke-width="5" stroke-linecap="round" fill="none"/>
+  <path d="M 186 312 L 182 330 L 192 320 Z" fill="#fff"/>
+  <path d="M 214 312 L 218 330 L 208 320 Z" fill="#fff"/>
+
+  <!-- Sunglasses -->
+  <rect x="96" y="194" width="94" height="50" rx="10" fill="url(#lens)"/>
+  <rect x="210" y="194" width="94" height="50" rx="10" fill="url(#lens)"/>
+  <rect x="186" y="212" width="28" height="8" fill="#1a1a1a"/>
+  <rect x="108" y="202" width="32" height="7" rx="2" fill="#ff8c3a" opacity="0.85"/>
+  <rect x="222" y="202" width="32" height="7" rx="2" fill="#ff8c3a" opacity="0.85"/>
+
+  <!-- Claw slash accent -->
+  <g stroke="#fff2dc" stroke-width="6" stroke-linecap="round" fill="none" opacity="0.85">
+    <path d="M 36 60 Q 70 90 96 122"/>
+    <path d="M 70 36 Q 105 65 130 96"/>
+    <path d="M 110 28 Q 140 56 162 84" stroke-width="4"/>
+  </g>
+</svg>

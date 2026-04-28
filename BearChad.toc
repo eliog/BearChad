@@ -1,0 +1,9 @@
+## Interface: 20504
+## Title: BearChad
+## Notes: Druid bear-tank rotation helper. For out-threating warriors named Chad.
+## Author: eliog
+## Version: 1.0
+## SavedVariables: BearChadDB
+## DefaultState: enabled
+
+BearChad.lua
