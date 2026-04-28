@@ -5,5 +5,7 @@
 ## Version: 1.4.4
 ## SavedVariables: BearChadDB
 ## DefaultState: enabled
+## X-Curse-Project-ID: 1527351
+## X-License: Public Domain
 
 BearChad.lua
