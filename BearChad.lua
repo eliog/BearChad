@@ -368,8 +368,6 @@ for i, name in ipairs(cdSpells) do
     if tex then b.icon:SetTexture(tex) end
     b.cd = CreateFrame("Cooldown", nil, b, "CooldownFrameTemplate")
     b.cd:SetAllPoints()
-    b.text = b:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    b.text:SetPoint("BOTTOM", 0, -10)
     b.spell = name
     cdIcons[i] = b
 end
@@ -583,16 +581,13 @@ root:SetScript("OnUpdate", function(self, elapsed)
         lac:SetStatusBarColor(0.4, 0.7, 0.2)
     end
 
-    -- Cooldowns row
+    -- Cooldowns row (CooldownFrameTemplate / OmniCC handle the numeric display).
     for _, b in ipairs(cdIcons) do
         local start, dur = GetSpellCooldown(b.spell)
         if start and dur and dur > 1.5 then
             b.cd:SetCooldown(start, dur)
-            local left = start + dur - GetTime()
-            b.text:SetText(left > 0 and ("%.0f"):format(left) or "")
         else
             b.cd:Clear()
-            b.text:SetText("")
         end
     end
 

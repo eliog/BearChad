@@ -2,6 +2,11 @@
 
 All notable changes to BearChad. Format follows [Keep a Changelog](https://keepachangelog.com/), versioning follows [SemVer](https://semver.org/).
 
+## [1.4.1] - 2026-04-27
+
+### Fixed
+- Cooldown row showed duplicate countdown numerals — one inside the icon (from `CooldownFrameTemplate` / OmniCC) and one below the icon (a custom font string anchored outside the icon's bounds). Removed the redundant custom text; the icon-internal countdown now stands alone.
+
 ## [1.4.0] - 2026-04-27
 
 ### Changed
