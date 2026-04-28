@@ -31,6 +31,13 @@ local MANGLE_REFRESH    = 2   -- pre-cast inside last 2s
 local RAGE_MAUL         = 30  -- queue Maul above this rage
 local RAGE_CAP_WARN     = 85  -- flash bar above this
 
+-- AoE detection (hybrid nameplate + combat-log + threat filter, async hysteresis)
+local AOE_THRESHOLD     = 3    -- enemies engaged with player to flip into AoE
+local AOE_CL_WINDOW     = 5.0  -- combat-log GUID retention (s)
+local AOE_UP_DEBOUNCE   = 0.5  -- ST -> AoE: count must hold for this long
+local AOE_DOWN_DEBOUNCE = 2.5  -- AoE -> ST: count must drop for this long
+local DEMO_REFRESH      = 5    -- refresh Demo Roar when <= this many seconds left
+
 ----------------------------------------------------------------------
 -- Helpers
 ----------------------------------------------------------------------
@@ -85,6 +92,110 @@ end
 
 local function hasValidTarget()
     return UnitExists("target") and UnitCanAttack("player", "target") and not UnitIsDead("target")
+end
+
+local function debuffLeft(spellName)
+    if not hasValidTarget() then return 0 end
+    local _, _, e = targetDebuffByPlayer(spellName)
+    return (e and e > 0) and (e - GetTime()) or 0
+end
+
+----------------------------------------------------------------------
+-- AoE detection: nameplate scan ∪ combat-log GUID pool, threat-filtered.
+----------------------------------------------------------------------
+local clSeen = {}             -- [guid] = lastSeenTime (mobs trading blows w/ player)
+local autoIsAoE = false       -- latched auto-mode result, after debouncing
+local aboveSince, belowSince = nil, nil
+local lastEnemyCount = 0
+
+local clog = CreateFrame("Frame")
+clog:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
+clog:RegisterEvent("PLAYER_REGEN_ENABLED")
+clog:SetScript("OnEvent", function(_, event)
+    if event == "PLAYER_REGEN_ENABLED" then
+        wipe(clSeen)
+        autoIsAoE = false
+        aboveSince, belowSince = nil, nil
+        return
+    end
+    local _, sub, _, srcGUID, _, _, _, dstGUID = CombatLogGetCurrentEventInfo()
+    if not srcGUID or not dstGUID then return end
+    local pGUID = UnitGUID("player")
+    local now = GetTime()
+    if dstGUID == pGUID and srcGUID ~= pGUID and srcGUID:sub(1, 7) ~= "Player-" then
+        clSeen[srcGUID] = now
+    elseif srcGUID == pGUID and dstGUID ~= pGUID and dstGUID:sub(1, 7) ~= "Player-" then
+        clSeen[dstGUID] = now
+    end
+    if sub == "UNIT_DIED" or sub == "PARTY_KILL" then
+        clSeen[dstGUID] = nil
+    end
+end)
+
+local function countEngagedEnemies()
+    local seen, n = {}, 0
+    local now = GetTime()
+
+    if C_NamePlate and C_NamePlate.GetNamePlates then
+        for _, plate in ipairs(C_NamePlate.GetNamePlates()) do
+            local u = plate.namePlateUnitToken
+            if u and UnitExists(u) and UnitCanAttack("player", u)
+               and not UnitIsDead(u)
+               and UnitThreatSituation("player", u) ~= nil then
+                local g = UnitGUID(u)
+                if g and not seen[g] then
+                    seen[g] = true
+                    n = n + 1
+                end
+            end
+        end
+    end
+
+    for g, t in pairs(clSeen) do
+        if now - t > AOE_CL_WINDOW then
+            clSeen[g] = nil
+        elseif not seen[g] then
+            seen[g] = true
+            n = n + 1
+        end
+    end
+    return n
+end
+
+local function updateAoEDetection()
+    if not UnitAffectingCombat("player") then
+        autoIsAoE = false
+        aboveSince, belowSince = nil, nil
+        lastEnemyCount = 0
+        return
+    end
+    local count = countEngagedEnemies()
+    lastEnemyCount = count
+    local now = GetTime()
+    if count >= AOE_THRESHOLD then
+        belowSince = nil
+        aboveSince = aboveSince or now
+        if not autoIsAoE and (now - aboveSince) >= AOE_UP_DEBOUNCE then
+            autoIsAoE = true
+        end
+    else
+        aboveSince = nil
+        belowSince = belowSince or now
+        if autoIsAoE and (now - belowSince) >= AOE_DOWN_DEBOUNCE then
+            autoIsAoE = false
+        end
+    end
+end
+
+local function aoeMode()
+    return (BearChadDB and BearChadDB.aoeMode) or "auto"
+end
+
+local function isAoEActive()
+    local m = aoeMode()
+    if m == "on" then return true end
+    if m == "off" then return false end
+    return autoIsAoE
 end
 
 ----------------------------------------------------------------------
@@ -154,6 +265,9 @@ sug.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
 sug.label = sug:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
 sug.label:SetPoint("TOP", sug, "BOTTOM", 0, -2)
 sug.label:SetText("")
+sug.mode = sug:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+sug.mode:SetPoint("TOPRIGHT", sug, "TOPRIGHT", -2, -2)
+sug.mode:SetText("ST")
 
 -- Rage bar
 local rage = CreateFrame("StatusBar", nil, root)
@@ -240,14 +354,10 @@ formWarn:SetTextColor(1, 0.2, 0.2)
 ----------------------------------------------------------------------
 -- Rotation logic
 ----------------------------------------------------------------------
-local function suggestNext()
-    if not inBearForm() then
-        return S.BearForm, "SHIFT INTO BEAR"
-    end
+local function suggestSingleTarget()
     if not hasValidTarget() then
         return S.Mangle, "no target"
     end
-
     local rageNow = UnitPower("player") or 0
     local mangleCD = spellCD(S.Mangle)
     local lacCD    = spellCD(S.Lacerate)
@@ -259,32 +369,66 @@ local function suggestNext()
     local lLeft = (lExpires or 0) > 0 and (lExpires - GetTime()) or 0
     lStacks = lStacks or 0
 
-    -- 1. Maintain Mangle debuff (it buffs all bleeds 30%).
-    if mangleCD <= 0.2 and (mLeft <= MANGLE_REFRESH) and rageNow >= 15 then
+    if mangleCD <= 0.2 and mLeft <= MANGLE_REFRESH and rageNow >= 15 then
         return S.Mangle, "apply/refresh Mangle"
     end
-    -- 2. Push Lacerate to 5 stacks.
     if lacCD <= 0.2 and lStacks < 5 and rageNow >= 13 then
         return S.Lacerate, "stack Lacerate ("..lStacks.."/5)"
     end
-    -- 3. Refresh Lacerate before falloff.
     if lacCD <= 0.2 and lStacks == 5 and lLeft <= LACERATE_REFRESH and rageNow >= 13 then
         return S.Lacerate, "refresh Lacerate"
     end
-    -- 4. Mangle on cooldown (damage + threat).
     if mangleCD <= 0.2 and rageNow >= 15 then
         return S.Mangle, "Mangle on CD"
     end
-    -- 5. Faerie Fire (Feral) — armor debuff + threat, free GCD filler.
     if fffCD <= 0.2 then
         return S.FFF, "FFF"
     end
-    -- 6. Lacerate filler when neither Mangle nor FFF available.
     if lacCD <= 0.2 and rageNow >= 13 then
         return S.Lacerate, "Lacerate filler"
     end
-    -- 7. Nothing pressing: Maul will eat the rage on next swing.
     return S.Maul, "queue Maul"
+end
+
+local function suggestAoE()
+    local rageNow = UnitPower("player") or 0
+    local mangleCD = spellCD(S.Mangle)
+    local fffCD    = spellCD(S.FFF)
+    local mLeft    = debuffLeft(S.Mangle)
+    local dLeft    = debuffLeft(S.DemoRoar)
+
+    -- 1. Demo Roar if missing or about to fall off (AoE attack-power debuff + threat).
+    if dLeft <= DEMO_REFRESH and rageNow >= 10 then
+        return S.DemoRoar, "Demo Roar"
+    end
+    -- 2. Maintain Mangle on focus target (still 30% bleed bonus + snap threat).
+    if hasValidTarget() and mangleCD <= 0.2 and mLeft <= MANGLE_REFRESH and rageNow >= 15 then
+        return S.Mangle, "Mangle on focus"
+    end
+    -- 3. Swipe spam.
+    if rageNow >= 20 then
+        return S.Swipe, "Swipe ("..lastEnemyCount.." mobs)"
+    end
+    -- 4. Mangle on CD if rage allows.
+    if hasValidTarget() and mangleCD <= 0.2 and rageNow >= 15 then
+        return S.Mangle, "Mangle on CD"
+    end
+    -- 5. FFF on CD.
+    if hasValidTarget() and fffCD <= 0.2 then
+        return S.FFF, "FFF"
+    end
+    -- 6. Building rage: queue Maul on focus.
+    return S.Maul, "queue Maul"
+end
+
+local function suggestNext()
+    if not inBearForm() then
+        return S.BearForm, "SHIFT INTO BEAR"
+    end
+    if isAoEActive() then
+        return suggestAoE()
+    end
+    return suggestSingleTarget()
 end
 
 ----------------------------------------------------------------------
@@ -295,6 +439,8 @@ root:SetScript("OnUpdate", function(self, elapsed)
     lastUpdate = lastUpdate + elapsed
     if lastUpdate < 0.1 then return end
     lastUpdate = 0
+
+    updateAoEDetection()
 
     -- Rage
     local rageNow = UnitPower("player") or 0
@@ -367,6 +513,16 @@ root:SetScript("OnUpdate", function(self, elapsed)
     local _, _, tex = GetSpellInfo(nextSpell)
     if tex then sug.icon:SetTexture(tex) end
     sug.label:SetText(why or "")
+
+    -- Mode label (asterisk indicates manual override)
+    local active = isAoEActive() and "AoE" or "ST"
+    local suffix = aoeMode() == "auto" and "" or "*"
+    sug.mode:SetText(active .. suffix)
+    if active == "AoE" then
+        sug.mode:SetTextColor(1, 0.55, 0.15)
+    else
+        sug.mode:SetTextColor(0.7, 0.7, 0.7)
+    end
 end)
 
 ----------------------------------------------------------------------
@@ -393,7 +549,9 @@ SLASH_BEARCHAD1 = "/bearchad"
 SLASH_BEARCHAD2 = "/bc"
 SlashCmdList.BEARCHAD = function(msg)
     msg = (msg or ""):lower()
+    BearChadDB = BearChadDB or {}
     local scaleArg = msg:match("^scale%s+([%d%.]+)$")
+    local aoeArg   = msg:match("^aoe%s+(%S+)$") or (msg == "aoe" and "toggle" or nil)
     if msg == "lock" then
         root:EnableMouse(false)
         grip:Hide()
@@ -417,8 +575,19 @@ SlashCmdList.BEARCHAD = function(msg)
             BearChadDB.scale = n
             print(("|cff88ccff[BearChad]|r scale = %.2f"):format(n))
         end
+    elseif aoeArg then
+        if aoeArg == "on" or aoeArg == "off" or aoeArg == "auto" then
+            BearChadDB.aoeMode = aoeArg
+        elseif aoeArg == "toggle" then
+            local cur = BearChadDB.aoeMode or "auto"
+            BearChadDB.aoeMode = (cur == "auto") and "on" or "auto"
+        else
+            print("|cff88ccff[BearChad]|r usage: /bc aoe on | off | auto")
+            return
+        end
+        print(("|cff88ccff[BearChad]|r AoE mode: %s"):format(BearChadDB.aoeMode))
     else
-        print("|cff88ccff[BearChad]|r /bc lock | unlock | reset | scale <0.5-2.5>")
+        print("|cff88ccff[BearChad]|r /bc lock | unlock | reset | scale <0.5-2.5> | aoe <on|off|auto>")
     end
 end
 
