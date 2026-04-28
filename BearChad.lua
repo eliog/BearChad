@@ -157,9 +157,16 @@ clog:SetScript("OnEvent", function(_, event)
     if not srcGUID or not dstGUID then return end
     local pGUID = UnitGUID("player")
     local now = GetTime()
-    if dstGUID == pGUID and srcGUID ~= pGUID and srcGUID:sub(1, 7) ~= "Player-" then
+    -- Exclude friendly entities so other players, their pets, and player vehicles
+    -- don't pollute the AoE GUID pool.
+    local function notFriendly(g)
+        return g:sub(1, 7) ~= "Player-"
+           and g:sub(1, 4) ~= "Pet-"
+           and g:sub(1, 8) ~= "Vehicle-"
+    end
+    if dstGUID == pGUID and srcGUID ~= pGUID and notFriendly(srcGUID) then
         clSeen[srcGUID] = now
-    elseif srcGUID == pGUID and dstGUID ~= pGUID and dstGUID:sub(1, 7) ~= "Player-" then
+    elseif srcGUID == pGUID and dstGUID ~= pGUID and notFriendly(dstGUID) then
         clSeen[dstGUID] = now
     end
     if sub == "UNIT_DIED" or sub == "PARTY_KILL" then
