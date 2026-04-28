@@ -2,6 +2,11 @@
 
 All notable changes to BearChad. Format follows [Keep a Changelog](https://keepachangelog.com/), versioning follows [SemVer](https://semver.org/).
 
+## [1.5.1] - 2026-04-28
+
+### Changed
+- Toc Interface bumped from 20504 (2.5.4) to 20505 (2.5.5) to match the current TBC Classic Anniversary client. Packager builds and CurseForge uploads now correctly advertise 2.5.5 support.
+
 ## [1.5.0] - 2026-04-28
 
 ### Added
