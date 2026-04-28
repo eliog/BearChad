@@ -401,8 +401,8 @@ local buffSpells = { S.MotW, S.Thorns, S.OoC }
 local buffIcons = {}
 for i, name in ipairs(buffSpells) do
     local b = CreateFrame("Frame", nil, buffRow)
-    b:SetSize(22, 22)
-    b:SetPoint("LEFT", (i - 1) * 26, 0)
+    b:SetSize(_BUFF_SIZE, _BUFF_SIZE)
+    b:SetPoint("LEFT", (i - 1) * (_BUFF_SIZE + _BUFF_GAP), 0)
     b.border = CreateFrame("Frame", nil, b, BackdropTemplateMixin and "BackdropTemplate" or nil)
     b.border:SetPoint("TOPLEFT", -1, 1)
     b.border:SetPoint("BOTTOMRIGHT", 1, -1)

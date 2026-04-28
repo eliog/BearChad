@@ -6,6 +6,7 @@ All notable changes to BearChad. Format follows [Keep a Changelog](https://keepa
 
 ### Fixed
 - `targetDebuffByPlayer`, `playerBuff`, and `playerBuffInfo` now always return their declared types (zeros, false, nil) when the loop completes without a match. Previous fall-through could return implicit `nil` and cause downstream "compare nil with number" errors in fragile code paths.
+- Buff status row spacing now derived from `_BUFF_SIZE + _BUFF_GAP` constants instead of a hardcoded `26`. Previously, changing the icon size or gap would leave the icons misaligned.
 
 ## [1.5.1] - 2026-04-28
 
