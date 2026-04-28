@@ -2,6 +2,11 @@
 
 All notable changes to BearChad. Format follows [Keep a Changelog](https://keepachangelog.com/), versioning follows [SemVer](https://semver.org/).
 
+## [1.4.5] - 2026-04-27
+
+### Changed
+- Suggester label dropped 4 pixels lower (offset −2 → −6) so the text breathes between the icon and the buff row instead of hugging the bottom of the icon.
+
 ## [1.4.4] - 2026-04-27
 
 ### Changed
