@@ -29,7 +29,8 @@ local LACERATE_DURATION = 15  -- seconds
 local LACERATE_REFRESH  = 4   -- refresh when <=4s left
 local MANGLE_REFRESH    = 2   -- pre-cast inside last 2s
 local FFF_REFRESH       = 3   -- refresh FFF debuff (40s) when <=3s left
-local RAGE_MAUL         = 30  -- queue Maul above this rage
+local RAGE_MAUL_ST      = 50  -- queue Maul in ST when rage >= this
+local RAGE_MAUL_AOE     = 70  -- higher in AoE (Swipe + Mangle eat rage)
 local RAGE_CAP_WARN     = 85  -- flash bar above this
 
 -- AoE detection (hybrid nameplate + combat-log + threat filter, async hysteresis)
@@ -47,23 +48,6 @@ local function spellCD(name)
     if not start or start == 0 then return 0 end
     local rem = start + dur - GetTime()
     return rem > 0 and rem or 0
-end
-
-local function spellUsable(name)
-    local start, dur = GetSpellCooldown(name)
-    if not start then return false end
-    local gcd = (dur or 0) <= 1.5  -- treat GCD as usable
-    return (start == 0) or gcd
-end
-
-local function findAura(unit, name, filter)
-    for i = 1, 40 do
-        local n, _, count, _, dur, expires, source = UnitAura(unit, i, filter)
-        if not n then return nil end
-        if n == name and (filter ~= "HARMFUL|PLAYER" or source == "player") then
-            return count or 0, dur or 0, expires or 0, source
-        end
-    end
 end
 
 local function targetDebuffByPlayer(name)
@@ -355,73 +339,79 @@ formWarn:SetTextColor(1, 0.2, 0.2)
 ----------------------------------------------------------------------
 -- Rotation logic
 ----------------------------------------------------------------------
+local function maulQueued()
+    return IsCurrentSpell and IsCurrentSpell(S.Maul)
+end
+
 local function suggestSingleTarget()
     if not hasValidTarget() then
         return S.Mangle, "no target"
     end
-    local rageNow = UnitPower("player") or 0
+    local rageNow  = UnitPower("player") or 0
     local mangleCD = spellCD(S.Mangle)
     local lacCD    = spellCD(S.Lacerate)
     local fffCD    = spellCD(S.FFF)
+    local cc       = playerBuff(S.Clearcast)
 
-    local _, _, mExpires = targetDebuffByPlayer(S.Mangle)
     local lStacks, _, lExpires = targetDebuffByPlayer(S.Lacerate)
-    local mLeft = (mExpires or 0) > 0 and (mExpires - GetTime()) or 0
     local lLeft = (lExpires or 0) > 0 and (lExpires - GetTime()) or 0
     lStacks = lStacks or 0
 
-    if mangleCD <= 0.2 and mLeft <= MANGLE_REFRESH and rageNow >= 15 then
-        return S.Mangle, "apply/refresh Mangle"
+    -- 1. Mangle on CD (highest threat-per-GCD; bleed-bonus debuff for Lacerate).
+    if mangleCD <= 0.2 and (cc or rageNow >= 15) then
+        return S.Mangle, cc and "Mangle (CC!)" or "Mangle on CD"
     end
-    if lacCD <= 0.2 and lStacks < 5 and rageNow >= 13 then
+    -- 2. Lacerate to 5 stacks.
+    if lacCD <= 0.2 and lStacks < 5 and (cc or rageNow >= 13) then
         return S.Lacerate, "stack Lacerate ("..lStacks.."/5)"
     end
-    if lacCD <= 0.2 and lStacks == 5 and lLeft <= LACERATE_REFRESH and rageNow >= 13 then
+    -- 3. Lacerate refresh only when expiring (no filler at full stacks).
+    if lacCD <= 0.2 and lStacks == 5 and lLeft <= LACERATE_REFRESH and (cc or rageNow >= 13) then
         return S.Lacerate, "refresh Lacerate"
     end
-    if mangleCD <= 0.2 and rageNow >= 15 then
-        return S.Mangle, "Mangle on CD"
-    end
+    -- 4. FFF if missing/expiring.
     local fLeft = debuffLeft(S.FFF)
     if fffCD <= 0.2 and fLeft <= FFF_REFRESH then
         return S.FFF, fLeft <= 0 and "apply FFF" or "refresh FFF"
     end
-    if lacCD <= 0.2 and rageNow >= 13 then
-        return S.Lacerate, "Lacerate filler"
+    -- 5. Idle GCD. Suggest Maul only at safe rage and not already queued;
+    --    otherwise show "wait" so we don't burn rage on a Maul that
+    --    would starve the next Mangle.
+    if rageNow >= RAGE_MAUL_ST and not maulQueued() then
+        return S.Maul, "queue Maul (rage dump)"
     end
-    return S.Maul, "queue Maul"
+    return S.Maul, "wait / auto-attack"
 end
 
 local function suggestAoE()
-    local rageNow = UnitPower("player") or 0
+    local rageNow  = UnitPower("player") or 0
     local mangleCD = spellCD(S.Mangle)
     local fffCD    = spellCD(S.FFF)
-    local mLeft    = debuffLeft(S.Mangle)
     local dLeft    = debuffLeft(S.DemoRoar)
+    local cc       = playerBuff(S.Clearcast)
 
-    -- 1. Demo Roar if missing or about to fall off (AoE attack-power debuff + threat).
-    if dLeft <= DEMO_REFRESH and rageNow >= 10 then
+    -- 1. Demo Roar refresh (AoE AP debuff + multi-target threat).
+    if dLeft <= DEMO_REFRESH and (cc or rageNow >= 10) then
         return S.DemoRoar, "Demo Roar"
     end
-    -- 2. Maintain Mangle on focus target (still 30% bleed bonus + snap threat).
-    if hasValidTarget() and mangleCD <= 0.2 and mLeft <= MANGLE_REFRESH and rageNow >= 15 then
-        return S.Mangle, "Mangle on focus"
-    end
-    -- 3. Swipe spam.
-    if rageNow >= 20 then
+    -- 2. Swipe — primary AoE threat engine, hits 4. CC makes it free.
+    if cc or rageNow >= 20 then
         return S.Swipe, "Swipe ("..lastEnemyCount.." mobs)"
     end
-    -- 4. Mangle on CD if rage allows.
+    -- 3. Mangle on CD on focus (snap single-target threat at low rage).
     if hasValidTarget() and mangleCD <= 0.2 and rageNow >= 15 then
-        return S.Mangle, "Mangle on CD"
+        return S.Mangle, "Mangle on focus"
     end
-    -- 5. FFF if debuff missing/expiring (single-target, but the threat helps).
+    -- 4. FFF on focus.
     local fLeft = debuffLeft(S.FFF)
     if hasValidTarget() and fffCD <= 0.2 and fLeft <= FFF_REFRESH then
         return S.FFF, fLeft <= 0 and "apply FFF" or "refresh FFF"
     end
-    -- 6. Building rage: queue Maul on focus.
-    return S.Maul, "queue Maul"
+    -- 5. Idle. Maul threshold higher in AoE since Swipe will eat rage soon.
+    if rageNow >= RAGE_MAUL_AOE and not maulQueued() then
+        return S.Maul, "queue Maul (rage dump)"
+    end
+    return S.Maul, "wait / auto-attack"
 end
 
 local function suggestNext()
