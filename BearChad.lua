@@ -1100,7 +1100,9 @@ end
 local lastUpdate = 0
 root:SetScript("OnUpdate", function(self, elapsed)
     lastUpdate = lastUpdate + elapsed
-    if lastUpdate < 0.1 then return end
+    -- Idle throttle: 10 Hz in combat or with stats panel open, 2 Hz otherwise.
+    local interval = (UnitAffectingCombat("player") or statsRoot:IsShown()) and 0.1 or 0.5
+    if lastUpdate < interval then return end
     lastUpdate = 0
 
     updateAoEDetection()

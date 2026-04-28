@@ -15,6 +15,9 @@ All notable changes to BearChad. Format follows [Keep a Changelog](https://keepa
 ### Fixed
 - Combat-log GUID pool used by AoE detection now excludes `Pet-` and `Vehicle-` prefixed GUIDs in addition to `Player-`. Previously another player's pet hitting you (e.g. duels, world PvP) could inflate the AoE enemy count.
 
+### Performance
+- Idle OnUpdate throttle. The HUD updates at 10 Hz only when in combat or while the stats panel is visible; otherwise drops to 2 Hz. Out-of-combat idle CPU usage cut by ~80%.
+
 ## [1.5.1] - 2026-04-28
 
 ### Changed
