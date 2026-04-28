@@ -208,7 +208,7 @@ local SIDE_BAR_W = FRAME_W - 2 * PAD - SUG_SIZE - BAR_GAP
 local BAR_H = 14
 
 local root = CreateFrame("Frame", "BearChadFrame", UIParent)
-root:SetSize(FRAME_W, 180)
+root:SetSize(FRAME_W, 150)
 root:SetPoint("CENTER", 0, -200)
 root:SetMovable(true)
 root:EnableMouse(true)
@@ -267,7 +267,7 @@ rage:SetStatusBarColor(0.9, 0.15, 0.15)
 local rageBg = rage:CreateTexture(nil, "BACKGROUND")
 rageBg:SetAllPoints()
 rageBg:SetColorTexture(0.1, 0.1, 0.1, 0.8)
-rage.text = rage:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+rage.text = rage:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
 rage.text:SetPoint("CENTER")
 
 -- HP bar (full width, below rage)
@@ -280,7 +280,7 @@ hp:SetStatusBarColor(0.2, 0.8, 0.2)
 local hpBg = hp:CreateTexture(nil, "BACKGROUND")
 hpBg:SetAllPoints()
 hpBg:SetColorTexture(0.1, 0.1, 0.1, 0.8)
-hp.text = hp:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+hp.text = hp:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
 hp.text:SetPoint("CENTER")
 
 -- Suggester (next-ability icon, left side under bars)
@@ -294,10 +294,10 @@ sug.border:SetColorTexture(1, 0.82, 0, 0.9)
 sug.icon = sug:CreateTexture(nil, "ARTWORK")
 sug.icon:SetAllPoints()
 sug.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-sug.label = sug:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+sug.label = sug:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
 sug.label:SetPoint("TOP", sug, "BOTTOM", 0, -2)
 sug.label:SetText("")
-sug.mode = sug:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+sug.mode = sug:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
 sug.mode:SetPoint("TOPRIGHT", sug, "TOPRIGHT", -2, -2)
 sug.mode:SetText("ST")
 
@@ -311,7 +311,7 @@ mangle:SetStatusBarColor(0.85, 0.4, 0.85)
 local mBg = mangle:CreateTexture(nil, "BACKGROUND")
 mBg:SetAllPoints()
 mBg:SetColorTexture(0.1, 0.1, 0.1, 0.8)
-mangle.text = mangle:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+mangle.text = mangle:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
 mangle.text:SetPoint("CENTER")
 mangle.text:SetText("Mangle: --")
 
@@ -325,14 +325,15 @@ lac:SetStatusBarColor(0.4, 0.7, 0.2)
 local lBg = lac:CreateTexture(nil, "BACKGROUND")
 lBg:SetAllPoints()
 lBg:SetColorTexture(0.1, 0.1, 0.1, 0.8)
-lac.text = lac:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+lac.text = lac:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
 lac.text:SetPoint("CENTER")
 lac.text:SetText("Lacerate: 0/5")
 
 -- Cooldown row (FFF, Demo Roar, Enrage, Barkskin, Frenzied Regen, Growl)
+-- Sits under Lacerate in the right column.
 local cdRow = CreateFrame("Frame", nil, root)
-cdRow:SetPoint("TOPLEFT", sug, "BOTTOMLEFT", 0, -8)
-cdRow:SetSize(FULL_BAR_W, 28)
+cdRow:SetPoint("TOPLEFT", lac, "BOTTOMLEFT", 0, -4)
+cdRow:SetSize(SIDE_BAR_W, 28)
 local cdSpells = { S.FFF, S.DemoRoar, S.Enrage, S.Barkskin, S.FrenziedReg, S.Growl }
 local cdIcons = {}
 for i, name in ipairs(cdSpells) do
@@ -346,16 +347,18 @@ for i, name in ipairs(cdSpells) do
     if tex then b.icon:SetTexture(tex) end
     b.cd = CreateFrame("Cooldown", nil, b, "CooldownFrameTemplate")
     b.cd:SetAllPoints()
-    b.text = b:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    b.text = b:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     b.text:SetPoint("BOTTOM", 0, -10)
     b.spell = name
     cdIcons[i] = b
 end
 
 -- Buff status row (MotW, Thorns, OoC). Bright when up, dim+red border when down.
+-- Right-aligned under the cooldown row.
 local buffRow = CreateFrame("Frame", nil, root)
-buffRow:SetPoint("TOPLEFT", cdRow, "BOTTOMLEFT", 0, -4)
-buffRow:SetSize(240, 22)
+local _BUFF_COUNT, _BUFF_SIZE, _BUFF_GAP = 3, 22, 4
+buffRow:SetPoint("TOPRIGHT", cdRow, "BOTTOMRIGHT", 0, -4)
+buffRow:SetSize(_BUFF_COUNT * _BUFF_SIZE + (_BUFF_COUNT - 1) * _BUFF_GAP, _BUFF_SIZE)
 local buffSpells = { S.MotW, S.Thorns, S.OoC }
 local buffIcons = {}
 for i, name in ipairs(buffSpells) do
@@ -440,7 +443,7 @@ local function suggestSingleTarget()
     if rageNow >= RAGE_MAUL_ST and not maulQueued() then
         return S.Maul, "queue Maul (rage dump)"
     end
-    return S.Maul, "wait / auto-attack"
+    return "WAIT", "auto-attack — build rage"
 end
 
 local function suggestAoE()
@@ -471,7 +474,7 @@ local function suggestAoE()
     if rageNow >= RAGE_MAUL_AOE and not maulQueued() then
         return S.Maul, "queue Maul (rage dump)"
     end
-    return S.Maul, "wait / auto-attack"
+    return "WAIT", "auto-attack — build rage"
 end
 
 local function suggestNext()
@@ -611,8 +614,14 @@ root:SetScript("OnUpdate", function(self, elapsed)
 
     -- Suggester
     local nextSpell, why = suggestNext()
-    local _, _, tex = GetSpellInfo(nextSpell)
-    if tex then sug.icon:SetTexture(tex) end
+    if nextSpell == "WAIT" then
+        sug.icon:SetTexture("Interface\\Icons\\Ability_Attack")
+        sug.icon:SetDesaturated(true)
+    else
+        local _, _, tex = GetSpellInfo(nextSpell)
+        if tex then sug.icon:SetTexture(tex) end
+        sug.icon:SetDesaturated(false)
+    end
     sug.label:SetText(why or "")
 
     -- Mode label (asterisk indicates manual override)
