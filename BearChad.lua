@@ -615,12 +615,14 @@ root:SetScript("OnUpdate", function(self, elapsed)
     -- Suggester
     local nextSpell, why = suggestNext()
     if nextSpell == "WAIT" then
-        sug.icon:SetTexture("Interface\\Icons\\Ability_Attack")
-        sug.icon:SetDesaturated(true)
+        sug.icon:Hide()
+        sug.border:SetColorTexture(0.3, 0.3, 0.3, 0.5)
     else
+        sug.icon:Show()
         local _, _, tex = GetSpellInfo(nextSpell)
         if tex then sug.icon:SetTexture(tex) end
         sug.icon:SetDesaturated(false)
+        sug.border:SetColorTexture(1, 0.82, 0, 0.9)
     end
     sug.label:SetText(why or "")
 

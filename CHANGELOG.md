@@ -2,6 +2,11 @@
 
 All notable changes to BearChad. Format follows [Keep a Changelog](https://keepachangelog.com/), versioning follows [SemVer](https://semver.org/).
 
+## [1.3.1] - 2026-04-27
+
+### Fixed
+- Wait state showed a solid yellow box instead of a distinct visual. The auto-attack icon path wasn't loading reliably across clients, leaving the suggester's yellow border visible behind a missing texture. Now the icon is hidden and the border switches to a dim grey when the suggester is in the wait state, making "nothing to press" unmistakable.
+
 ## [1.3.0] - 2026-04-27
 
 ### Added
