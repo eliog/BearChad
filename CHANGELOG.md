@@ -2,6 +2,11 @@
 
 All notable changes to BearChad. Format follows [Keep a Changelog](https://keepachangelog.com/), versioning follows [SemVer](https://semver.org/).
 
+## [1.4.0] - 2026-04-27
+
+### Changed
+- Bar texture swapped from `Interface\TargetingFrame\UI-StatusBar` to the flatter `Interface\RaidFrame\Raid-Bar-Hp-Fill` for a cleaner, modern look across all four bars (rage, HP, Mangle, Lacerate).
+
 ## [1.3.3] - 2026-04-27
 
 ### Changed

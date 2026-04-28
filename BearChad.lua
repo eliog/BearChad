@@ -45,6 +45,9 @@ local DEMO_REFRESH      = 5    -- refresh Demo Roar when <= this many seconds le
 local BUFF_WARN         = 60   -- buff countdown appears when <= this many seconds
 local BUFF_FLASH        = 30   -- pulse red border when <= this many seconds
 
+-- Visual constants
+local BAR_TEX           = "Interface\\RaidFrame\\Raid-Bar-Hp-Fill"
+
 ----------------------------------------------------------------------
 -- Helpers
 ----------------------------------------------------------------------
@@ -262,7 +265,7 @@ local rage = CreateFrame("StatusBar", nil, root)
 rage:SetPoint("TOPLEFT", root, "TOPLEFT", PAD, -PAD)
 rage:SetSize(FULL_BAR_W, BAR_H)
 rage:SetMinMaxValues(0, 100)
-rage:SetStatusBarTexture("Interface\\TargetingFrame\\UI-StatusBar")
+rage:SetStatusBarTexture(BAR_TEX)
 rage:SetStatusBarColor(0.9, 0.15, 0.15)
 local rageBg = rage:CreateTexture(nil, "BACKGROUND")
 rageBg:SetAllPoints()
@@ -275,7 +278,7 @@ local hp = CreateFrame("StatusBar", nil, root)
 hp:SetPoint("TOPLEFT", rage, "BOTTOMLEFT", 0, -2)
 hp:SetSize(FULL_BAR_W, BAR_H)
 hp:SetMinMaxValues(0, 1)
-hp:SetStatusBarTexture("Interface\\TargetingFrame\\UI-StatusBar")
+hp:SetStatusBarTexture(BAR_TEX)
 hp:SetStatusBarColor(0.2, 0.8, 0.2)
 local hpBg = hp:CreateTexture(nil, "BACKGROUND")
 hpBg:SetAllPoints()
@@ -307,7 +310,7 @@ local mangle = CreateFrame("StatusBar", nil, root)
 mangle:SetPoint("TOPLEFT", sug, "TOPRIGHT", BAR_GAP, 0)
 mangle:SetSize(SIDE_BAR_W, BAR_H)
 mangle:SetMinMaxValues(0, 12)
-mangle:SetStatusBarTexture("Interface\\TargetingFrame\\UI-StatusBar")
+mangle:SetStatusBarTexture(BAR_TEX)
 mangle:SetStatusBarColor(0.85, 0.4, 0.85)
 local mBg = mangle:CreateTexture(nil, "BACKGROUND")
 mBg:SetAllPoints()
@@ -321,7 +324,7 @@ local lac = CreateFrame("StatusBar", nil, root)
 lac:SetPoint("TOPLEFT", mangle, "BOTTOMLEFT", 0, -4)
 lac:SetSize(SIDE_BAR_W, BAR_H)
 lac:SetMinMaxValues(0, LACERATE_DURATION)
-lac:SetStatusBarTexture("Interface\\TargetingFrame\\UI-StatusBar")
+lac:SetStatusBarTexture(BAR_TEX)
 lac:SetStatusBarColor(0.4, 0.7, 0.2)
 local lBg = lac:CreateTexture(nil, "BACKGROUND")
 lBg:SetAllPoints()
