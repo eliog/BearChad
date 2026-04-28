@@ -199,8 +199,16 @@ end
 ----------------------------------------------------------------------
 -- UI: anchor frame
 ----------------------------------------------------------------------
+local PAD = 8
+local FRAME_W = 330
+local SUG_SIZE = 64
+local BAR_GAP = 10
+local FULL_BAR_W = FRAME_W - 2 * PAD
+local SIDE_BAR_W = FRAME_W - 2 * PAD - SUG_SIZE - BAR_GAP
+local BAR_H = 14
+
 local root = CreateFrame("Frame", "BearChadFrame", UIParent)
-root:SetSize(330, 140)
+root:SetSize(FRAME_W, 180)
 root:SetPoint("CENTER", 0, -200)
 root:SetMovable(true)
 root:EnableMouse(true)
@@ -249,10 +257,36 @@ grip:SetScript("OnMouseUp", function(self)
     BearChadDB.scale = root:GetScale()
 end)
 
--- Suggester (next-ability icon)
+-- Rage bar (top, full width, text inside)
+local rage = CreateFrame("StatusBar", nil, root)
+rage:SetPoint("TOPLEFT", root, "TOPLEFT", PAD, -PAD)
+rage:SetSize(FULL_BAR_W, BAR_H)
+rage:SetMinMaxValues(0, 100)
+rage:SetStatusBarTexture("Interface\\TargetingFrame\\UI-StatusBar")
+rage:SetStatusBarColor(0.9, 0.15, 0.15)
+local rageBg = rage:CreateTexture(nil, "BACKGROUND")
+rageBg:SetAllPoints()
+rageBg:SetColorTexture(0.1, 0.1, 0.1, 0.8)
+rage.text = rage:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+rage.text:SetPoint("CENTER")
+
+-- HP bar (full width, below rage)
+local hp = CreateFrame("StatusBar", nil, root)
+hp:SetPoint("TOPLEFT", rage, "BOTTOMLEFT", 0, -2)
+hp:SetSize(FULL_BAR_W, BAR_H)
+hp:SetMinMaxValues(0, 1)
+hp:SetStatusBarTexture("Interface\\TargetingFrame\\UI-StatusBar")
+hp:SetStatusBarColor(0.2, 0.8, 0.2)
+local hpBg = hp:CreateTexture(nil, "BACKGROUND")
+hpBg:SetAllPoints()
+hpBg:SetColorTexture(0.1, 0.1, 0.1, 0.8)
+hp.text = hp:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+hp.text:SetPoint("CENTER")
+
+-- Suggester (next-ability icon, left side under bars)
 local sug = CreateFrame("Frame", nil, root)
-sug:SetSize(64, 64)
-sug:SetPoint("LEFT", 6, 12)
+sug:SetSize(SUG_SIZE, SUG_SIZE)
+sug:SetPoint("TOPLEFT", hp, "BOTTOMLEFT", 0, -8)
 sug.border = sug:CreateTexture(nil, "BACKGROUND")
 sug.border:SetPoint("TOPLEFT", -2, 2)
 sug.border:SetPoint("BOTTOMRIGHT", 2, -2)
@@ -267,23 +301,10 @@ sug.mode = sug:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
 sug.mode:SetPoint("TOPRIGHT", sug, "TOPRIGHT", -2, -2)
 sug.mode:SetText("ST")
 
--- Rage bar
-local rage = CreateFrame("StatusBar", nil, root)
-rage:SetPoint("TOPLEFT", sug, "TOPRIGHT", 12, -2)
-rage:SetSize(240, 14)
-rage:SetMinMaxValues(0, 100)
-rage:SetStatusBarTexture("Interface\\TargetingFrame\\UI-StatusBar")
-rage:SetStatusBarColor(0.9, 0.15, 0.15)
-local rageBg = rage:CreateTexture(nil, "BACKGROUND")
-rageBg:SetAllPoints()
-rageBg:SetColorTexture(0.1, 0.1, 0.1, 0.8)
-rage.text = rage:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-rage.text:SetPoint("CENTER")
-
--- Mangle debuff timer
+-- Mangle debuff timer (right of suggester, top)
 local mangle = CreateFrame("StatusBar", nil, root)
-mangle:SetPoint("TOPLEFT", rage, "BOTTOMLEFT", 0, -4)
-mangle:SetSize(240, 12)
+mangle:SetPoint("TOPLEFT", sug, "TOPRIGHT", BAR_GAP, 0)
+mangle:SetSize(SIDE_BAR_W, BAR_H)
 mangle:SetMinMaxValues(0, 12)
 mangle:SetStatusBarTexture("Interface\\TargetingFrame\\UI-StatusBar")
 mangle:SetStatusBarColor(0.85, 0.4, 0.85)
@@ -294,10 +315,10 @@ mangle.text = mangle:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
 mangle.text:SetPoint("CENTER")
 mangle.text:SetText("Mangle: --")
 
--- Lacerate stacks + timer
+-- Lacerate stacks + timer (right of suggester, below mangle)
 local lac = CreateFrame("StatusBar", nil, root)
 lac:SetPoint("TOPLEFT", mangle, "BOTTOMLEFT", 0, -4)
-lac:SetSize(240, 12)
+lac:SetSize(SIDE_BAR_W, BAR_H)
 lac:SetMinMaxValues(0, LACERATE_DURATION)
 lac:SetStatusBarTexture("Interface\\TargetingFrame\\UI-StatusBar")
 lac:SetStatusBarColor(0.4, 0.7, 0.2)
@@ -310,8 +331,8 @@ lac.text:SetText("Lacerate: 0/5")
 
 -- Cooldown row (FFF, Demo Roar, Enrage, Barkskin, Frenzied Regen, Growl)
 local cdRow = CreateFrame("Frame", nil, root)
-cdRow:SetPoint("TOPLEFT", lac, "BOTTOMLEFT", 0, -8)
-cdRow:SetSize(240, 28)
+cdRow:SetPoint("TOPLEFT", sug, "BOTTOMLEFT", 0, -8)
+cdRow:SetSize(FULL_BAR_W, 28)
 local cdSpells = { S.FFF, S.DemoRoar, S.Enrage, S.Barkskin, S.FrenziedReg, S.Growl }
 local cdIcons = {}
 for i, name in ipairs(cdSpells) do
@@ -484,6 +505,22 @@ root:SetScript("OnUpdate", function(self, elapsed)
         rage:SetStatusBarColor(1, 0.85, 0.1)
     else
         rage:SetStatusBarColor(0.9, 0.15, 0.15)
+    end
+
+    -- Health
+    local hpNow = UnitHealth("player") or 0
+    local hpMax = UnitHealthMax("player") or 1
+    if hpMax < 1 then hpMax = 1 end
+    hp:SetMinMaxValues(0, hpMax)
+    hp:SetValue(hpNow)
+    hp.text:SetText(("HP %s / %s"):format(BreakUpLargeNumbers(hpNow), BreakUpLargeNumbers(hpMax)))
+    local pct = hpNow / hpMax
+    if pct > 0.5 then
+        hp:SetStatusBarColor(0.2, 0.8, 0.2)
+    elseif pct > 0.3 then
+        hp:SetStatusBarColor(0.9, 0.85, 0.2)
+    else
+        hp:SetStatusBarColor(0.9, 0.2, 0.2)
     end
 
     -- Mangle debuff
