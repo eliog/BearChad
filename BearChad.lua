@@ -69,13 +69,15 @@ end
 
 local function targetDebuffByPlayer(name)
     -- Walk debuffs and pick the one applied by the player.
+    -- Returns (count, dur, expires); zeros if not found, so callers can skip nil checks.
     for i = 1, 40 do
         local n, _, count, _, dur, expires, source = UnitAura("target", i, "HARMFUL")
-        if not n then return nil end
+        if not n then return 0, 0, 0 end
         if n == name and source == "player" then
             return (count or 0), (dur or 0), (expires or 0)
         end
     end
+    return 0, 0, 0
 end
 
 local function playerBuff(name)
@@ -84,6 +86,7 @@ local function playerBuff(name)
         if not n then return false end
         if n == name then return true end
     end
+    return false
 end
 
 local function playerBuffInfo(name)
@@ -92,6 +95,7 @@ local function playerBuffInfo(name)
         if not n then return nil end
         if n == name then return dur or 0, expires or 0 end
     end
+    return nil
 end
 
 local function inBearForm()

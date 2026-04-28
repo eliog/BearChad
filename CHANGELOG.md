@@ -2,6 +2,11 @@
 
 All notable changes to BearChad. Format follows [Keep a Changelog](https://keepachangelog.com/), versioning follows [SemVer](https://semver.org/).
 
+## [1.5.2] - 2026-04-28
+
+### Fixed
+- `targetDebuffByPlayer`, `playerBuff`, and `playerBuffInfo` now always return their declared types (zeros, false, nil) when the loop completes without a match. Previous fall-through could return implicit `nil` and cause downstream "compare nil with number" errors in fragile code paths.
+
 ## [1.5.1] - 2026-04-28
 
 ### Changed
