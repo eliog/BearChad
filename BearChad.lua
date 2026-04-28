@@ -571,9 +571,16 @@ root:SetScript("OnUpdate", function(self, elapsed)
         lac:SetMinMaxValues(0, lDur > 0 and lDur or LACERATE_DURATION)
         lac:SetValue(left)
         lac.text:SetText(("Lacerate %d/5  %.1fs"):format(lStacks or 0, left))
+        if (lStacks or 0) >= 5 then
+            -- Full stacks: red bar so you know not to keep stacking.
+            lac:SetStatusBarColor(0.85, 0.2, 0.2)
+        else
+            lac:SetStatusBarColor(0.4, 0.7, 0.2)
+        end
     else
         lac:SetValue(0)
         lac.text:SetText("Lacerate: 0/5")
+        lac:SetStatusBarColor(0.4, 0.7, 0.2)
     end
 
     -- Cooldowns row
