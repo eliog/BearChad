@@ -799,12 +799,19 @@ for _, section in ipairs(statsSections) do
     yPos = yPos - 6
 end
 
+local sotfRankCache = nil  -- invalidated on talent events; nil = "scan needed"
+
 local function getSotFRank()
+    if sotfRankCache ~= nil then return sotfRankCache end
     if not GetNumTalents or not GetTalentInfo then return 0 end
     for i = 1, GetNumTalents(2) do
         local n, _, _, _, rank = GetTalentInfo(2, i)
-        if n == "Survival of the Fittest" then return rank or 0 end
+        if n == "Survival of the Fittest" then
+            sotfRankCache = rank or 0
+            return sotfRankCache
+        end
     end
+    sotfRankCache = 0
     return 0
 end
 
@@ -1242,7 +1249,13 @@ end)
 local boot = CreateFrame("Frame")
 boot:RegisterEvent("ADDON_LOADED")
 boot:RegisterEvent("PLAYER_LOGIN")
+boot:RegisterEvent("CHARACTER_POINTS_CHANGED")
+boot:RegisterEvent("PLAYER_TALENT_UPDATE")
 boot:SetScript("OnEvent", function(self, ev, arg)
+    if ev == "CHARACTER_POINTS_CHANGED" or ev == "PLAYER_TALENT_UPDATE" then
+        sotfRankCache = nil  -- force rescan on next stats refresh
+        return
+    end
     if ev == "ADDON_LOADED" and arg == ADDON then
         BearChadDB = BearChadDB or {}
         if BearChadDB.pos then

@@ -10,6 +10,7 @@ All notable changes to BearChad. Format follows [Keep a Changelog](https://keepa
 
 ### Performance
 - Aura tracking switched from per-tick 40-slot scans to an event-driven cache refreshed only on `UNIT_AURA` and `PLAYER_TARGET_CHANGED`. Previously the addon walked target debuffs and player buffs four to five times per second; now it only walks them when the actual aura state changes. Net cost drops from ~150 µs/sec of pointless aura iteration to roughly zero.
+- Survival of the Fittest talent rank cached. Previously rescanned the entire Feral talent tree once per second whenever the stats panel was open. Now scanned once and invalidated only on talent change events.
 
 ## [1.5.1] - 2026-04-28
 
