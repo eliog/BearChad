@@ -2,6 +2,11 @@
 
 All notable changes to BearChad. Format follows [Keep a Changelog](https://keepachangelog.com/), versioning follows [SemVer](https://semver.org/).
 
+## [1.3.2] - 2026-04-27
+
+### Changed
+- Suggester label below the icon is now left-aligned (anchored to the suggester's bottom-left corner) instead of centered. Long labels like "stack Lacerate (3/5)" used to overflow past the frame's left edge when centered.
+
 ## [1.3.1] - 2026-04-27
 
 ### Fixed
