@@ -335,7 +335,7 @@ lac.text:SetText("Lacerate: 0/5")
 local cdRow = CreateFrame("Frame", nil, root)
 cdRow:SetPoint("TOPLEFT", lac, "BOTTOMLEFT", 0, -4)
 cdRow:SetSize(SIDE_BAR_W, 28)
-local cdSpells = { S.FFF, S.DemoRoar, S.Enrage, S.Barkskin, S.FrenziedReg, S.Growl }
+local cdSpells = { S.Mangle, S.Growl, S.Enrage, S.DemoRoar, S.ChalRoar, S.FrenziedReg, S.Barkskin }
 local cdIcons = {}
 for i, name in ipairs(cdSpells) do
     local b = CreateFrame("Frame", nil, cdRow)

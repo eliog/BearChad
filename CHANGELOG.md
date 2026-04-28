@@ -2,6 +2,11 @@
 
 All notable changes to BearChad. Format follows [Keep a Changelog](https://keepachangelog.com/), versioning follows [SemVer](https://semver.org/).
 
+## [1.3.3] - 2026-04-27
+
+### Changed
+- Cooldown row reorganized to: Mangle, Growl, Enrage, Demoralizing Roar, Challenging Roar, Frenzied Regeneration, Barkskin. Mangle's 6s cooldown now visible at a glance (the debuff bar shows the 12s debuff, not the CD). Faerie Fire (Feral) removed from the row since the rotation already tracks it via debuff state.
+
 ## [1.3.2] - 2026-04-27
 
 ### Changed
