@@ -2,7 +2,7 @@
 ## Title: BearChad
 ## Notes: Druid bear-tank rotation helper. For out-threating warriors named Chad.
 ## Author: eliog
-## Version: 1.4.1
+## Version: 1.4.2
 ## SavedVariables: BearChadDB
 ## DefaultState: enabled
 

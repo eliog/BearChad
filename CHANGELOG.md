@@ -2,6 +2,11 @@
 
 All notable changes to BearChad. Format follows [Keep a Changelog](https://keepachangelog.com/), versioning follows [SemVer](https://semver.org/).
 
+## [1.4.2] - 2026-04-27
+
+### Changed
+- Cooldown row icons now distribute evenly across the row width so the rightmost icon (Barkskin) sits flush with the right edge of the frame, matching the right edge of the bars above. Previously the icons clustered to the left with ~20px of dead space on the right.
+
 ## [1.4.1] - 2026-04-27
 
 ### Fixed

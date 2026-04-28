@@ -357,10 +357,16 @@ cdRow:SetPoint("TOPLEFT", lac, "BOTTOMLEFT", 0, -4)
 cdRow:SetSize(SIDE_BAR_W, 28)
 local cdSpells = { S.Mangle, S.Growl, S.Enrage, S.DemoRoar, S.ChalRoar, S.FrenziedReg, S.Barkskin }
 local cdIcons = {}
+local _CD_ICON, _CD_N = 28, #cdSpells
+local _CD_STRIDE = (SIDE_BAR_W - _CD_ICON) / (_CD_N - 1)
 for i, name in ipairs(cdSpells) do
     local b = CreateFrame("Frame", nil, cdRow)
-    b:SetSize(28, 28)
-    b:SetPoint("LEFT", (i - 1) * 32, 0)
+    b:SetSize(_CD_ICON, _CD_ICON)
+    if i == _CD_N then
+        b:SetPoint("RIGHT", cdRow, "RIGHT", 0, 0)
+    else
+        b:SetPoint("LEFT", cdRow, "LEFT", (i - 1) * _CD_STRIDE, 0)
+    end
     b.icon = b:CreateTexture(nil, "ARTWORK")
     b.icon:SetAllPoints()
     b.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
