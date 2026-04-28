@@ -2,6 +2,19 @@
 
 All notable changes to BearChad. Format follows [Keep a Changelog](https://keepachangelog.com/), versioning follows [SemVer](https://semver.org/).
 
+## [1.5.0] - 2026-04-28
+
+### Added
+- **Stats panel** — top-anchored bear-tank dashboard, toggleable via `/bc stats`. Floats on the dialog strata with a close button. Persists shown/hidden state across reloads.
+- **SURVIVAL section** — Crit Reduction (with progress bar vs the 5.60% UNCRITTABLE cap, computed from defense skill + resilience + auto-detected Survival of the Fittest talent rank), Defense, Resilience, Health / EHP (computed from armor mitigation), Armor (raw + % physical reduction vs a level 73 boss), Dodge.
+- **THREAT section** — Hit (with progress bar vs the 9% yellow-attack cap), Expertise (with progress bar vs the 26-skill cap), Crit Chance.
+- **Base stats line** — Stamina, Agility, and Attack Power on a single combined row.
+- **Tier comparison selector** — T3 / T4 / T5 / T6 / SWP buttons that color HP / EHP / Armor / Dodge values **red** when below tier, **yellow** when in range, or **green** when above. Lets you flip phases to see "am I geared for this content yet?" instantly.
+- **Hover tooltips** on every row explaining what each stat does and where its cap or target comes from.
+- **Section headers and dividers** with thin colored underlines separating SURVIVAL / THREAT / RAW STATS.
+- **Zebra striping** on alternate rows.
+- **Chad verdict line** at the bottom — randomized roast/respect message from a pool of 75+ lines (heavy on druid and bear-form humor) picked based on whether your aggregate stats fall below, within, or above the selected tier's targets. Re-rolls each time you open the panel or change tiers.
+
 ## [1.4.5] - 2026-04-27
 
 ### Changed

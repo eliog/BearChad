@@ -433,6 +433,541 @@ formWarn:SetText("")
 formWarn:SetTextColor(1, 0.2, 0.2)
 
 ----------------------------------------------------------------------
+-- Stats panel (toggleable via /bc stats). Anchors to the right of root.
+----------------------------------------------------------------------
+local statsRoot = CreateFrame("Frame", "BearChadStatsFrame", UIParent, BackdropTemplateMixin and "BackdropTemplate" or nil)
+statsRoot:SetSize(340, 380)
+statsRoot:SetPoint("TOP", UIParent, "TOP", 0, -120)
+statsRoot:SetFrameStrata("DIALOG")
+statsRoot:SetBackdrop({
+    bgFile   = "Interface\\Buttons\\WHITE8x8",
+    edgeFile = "Interface\\Buttons\\WHITE8x8",
+    edgeSize = 1,
+})
+statsRoot:SetBackdropColor(0.05, 0.05, 0.07, 0.92)
+statsRoot:SetBackdropBorderColor(0, 0, 0, 1)
+statsRoot:Hide()
+
+local statsTitle = statsRoot:CreateFontString(nil, "OVERLAY")
+statsTitle:SetFont(TEXT_FONT, 13, "OUTLINE")
+statsTitle:SetPoint("TOPLEFT", 10, -10)
+statsTitle:SetText("BearChad Stats")
+statsTitle:SetTextColor(0.95, 0.85, 0.4)
+
+local statsClose = CreateFrame("Button", nil, statsRoot, "UIPanelCloseButton")
+statsClose:SetPoint("TOPRIGHT", 2, 2)
+statsClose:SetScript("OnClick", function()
+    statsRoot:Hide()
+    BearChadDB = BearChadDB or {}
+    BearChadDB.stats = false
+end)
+
+-- Forward declarations: OnClick handlers below reference these.
+local updateStats
+local refreshChadLine
+
+local function attachTooltip(frame, title, body)
+    frame:EnableMouse(true)
+    frame:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetText(title, 0.95, 0.85, 0.4)
+        GameTooltip:AddLine(body, 1, 1, 1, true)
+        GameTooltip:Show()
+    end)
+    frame:SetScript("OnLeave", GameTooltip_Hide)
+end
+
+local statsHelp = statsRoot:CreateFontString(nil, "OVERLAY")
+statsHelp:SetFont(TEXT_FONT, 9, "OUTLINE")
+statsHelp:SetPoint("TOPLEFT", 10, -28)
+statsHelp:SetText("vs lvl 73 boss  •  hover any row for details")
+statsHelp:SetTextColor(0.55, 0.55, 0.55)
+
+-- Tier selector: pick the raid tier you want to compare your stats against.
+-- Chad's standards. Targets reflect "good bear gear for this tier", not minimum.
+local phaseList = { "T3", "T4", "T5", "T6", "SWP" }
+local phaseTargets = {
+    T3  = { hp = "6-8k",   armor = "11-14k", dodge = "18-22%", ehp = "~15k" },
+    T4  = { hp = "13-14k", armor = "21-24k", dodge = "28-31%", ehp = "~33k" },
+    T5  = { hp = "15-17k", armor = "25-28k", dodge = "31-35%", ehp = "~45k" },
+    T6  = { hp = "18-20k", armor = "29-32k", dodge = "35-38%", ehp = "~58k" },
+    SWP = { hp = "22k+",   armor = "34-37k", dodge = "39-44%", ehp = "~75k" },
+}
+
+-- Parse a target string ("16-18k", "19k+", "~55k", "32-36%") into low/high numbers.
+local function parseRange(s)
+    if not s then return 0, math.huge end
+    local mult = s:find("k") and 1000 or 1
+    local lo, hi = s:match("(%d+)%-(%d+)")
+    if lo and hi then return tonumber(lo) * mult, tonumber(hi) * mult end
+    local single = s:match("(%d+)")
+    if single then
+        local n = tonumber(single) * mult
+        if s:find("%+") then return n, math.huge end
+        return n, n
+    end
+    return 0, math.huge
+end
+
+-- Color hex string for a value compared to a target range.
+local function colorFor(value, lo, hi)
+    if value < lo then return "ff4040" end       -- below: red
+    if value <= hi then return "ffd040" end      -- in range: yellow
+    return "20ff20"                              -- above: green
+end
+
+-- Chad lines pool — picked when stats panel opens or tier changes.
+-- Chad is the guild leader. Lines lean into GM authority: recruitment, /gkick,
+-- officer chat, demotion, etc. Above-tier lines reflect Chad noticing you, not
+-- Chad losing his job.
+local chadLines = {
+    below = {
+        "Chad'll out-threat you while drinking. Go farm.",
+        "Chad's gonna one-shot you if you show up like that.",
+        "Chad mailed you his hand-me-downs. From Karazhan.",
+        "Even Chad's bank alt has more armor than this.",
+        "Chad's bear form is better geared than your bear form.",
+        "Chad's grandma raids more than your stats suggest.",
+        "Chad sent a sympathy card. With a Wowhead link.",
+        "Chad's healers unsubbed when they saw this.",
+        "Chad would tank this naked. You won't get in geared.",
+        "Chad's parsing 99 in greens. You're parsing cope.",
+        "Chad's macro reads /threat-cap. You're not loaded.",
+        "Chad's threat output exceeds your stamina pool.",
+        "Chad just used your gear as a transmog joke.",
+        "Chad's officer chat: 'we sure about this guy?'",
+        "Chad's drafting your demotion to social rank.",
+        "Chad's recruiting a replacement bear right now.",
+        "Chad opened the recruitment thread again. Wonder why.",
+        "Chad cancelled your raid invite mid-cast.",
+        "Chad's pinning your armory in #regrets.",
+        "Chad's hovering on /gkick. Don't make him click.",
+        "Chad just /promoted his hunter pet over you.",
+        -- druid / bear flavor
+        "Chad's bear has more agility than your boomkin alt.",
+        "Chad shifted out of bear and still out-tanked you.",
+        "Chad's idol came enchanted. Yours came from a quest.",
+        "Chad uses Maul as punctuation.",
+        "Chad's bear butt has higher armor than your chest.",
+        "Chad's been a bear longer than you've been logged in.",
+        "Chad's Druid Discord pinned your armory in #regrets.",
+        "Chad's Lacerate ticks are out-DPSing your rotation.",
+        "Chad's Hibernate hits harder than your Mangle.",
+        "Chad shapeshifted to escape secondhand embarrassment.",
+        "Chad's growl is the only debuff the boss respects.",
+        "Chad's Dire Bear form is taller than the boss.",
+        "Chad's swipe just cleared your DPS off the meter.",
+        "Chad's eating Heroic flasks for breakfast. You're sipping water.",
+        "Chad's threat ceiling is the actual ceiling.",
+        "Chad innervated the priest just to flex.",
+    },
+    close = {
+        "Chad's nodding politely. Don't get cocky.",
+        "You're almost Chad-tier. ALMOST.",
+        "Chad: 'not bad, kid.'",
+        "Same room as Chad. Different table.",
+        "You're a parse away from making Chad sweat.",
+        "Chad's keeping an eye on you. Worry.",
+        "Chad sees you. He just doesn't respect you yet.",
+        "Chad's spreadsheets say: 'might survive.'",
+        "Chad bookmarked your armory. For now.",
+        "Chad's officer chat: 'he's getting there.'",
+        "Chad pencil-marked you on the loot list.",
+        -- druid / bear flavor
+        "Chad noticed you spec'd into Mangle. Progress.",
+        "Chad's bear is one ring upgrade ahead of yours.",
+        "Chad's Druid Discord said: 'we'll see.'",
+        "Chad's idol approves. Yours is still doubting.",
+        "Chad's Maul is queued. Yours is buffering.",
+        "Chad's hunter pet stopped giggling. Almost respect.",
+    },
+    above = {
+        "Chad just whispered you for tips.",
+        "Chad approves. Begrudgingly.",
+        "Chad's parse just got 99'd. By you.",
+        "Chad's looking at your gear and quietly weeping.",
+        "Chad's healers want your number.",
+        "Chad just /ginvited you to officer chat.",
+        "Chad's officer chat: 'we found him.'",
+        "Chad's eyeing you for the MT slot.",
+        "Chad just made you the recruitment poster.",
+        "Chad's about to /promote you twice in one /reload.",
+        "Chad's pinning your armory in the announcements.",
+        "Chad sliced you a key to the guild bank.",
+        -- druid / bear flavor
+        "Chad asks where you got that idol.",
+        "Chad named his bear cub after you.",
+        "Chad's hunter pet lowered its head in respect.",
+        "Chad's writing a guide titled 'how this bear does it.'",
+        "Chad just rebound Maul to your name.",
+        "Chad's bear form bowed when you logged in.",
+        "Chad's Druid Discord pinned your armory in #legends.",
+        "Chad's officer chat: 'shapeshift him into MT immediately.'",
+        "Chad's idol just got a hit-piece on Wowhead. You're cited.",
+    },
+}
+
+local phaseLabel = statsRoot:CreateFontString(nil, "OVERLAY")
+phaseLabel:SetFont(TEXT_FONT, 10, "OUTLINE")
+phaseLabel:SetPoint("TOPLEFT", 10, -46)
+phaseLabel:SetText("Compare to:")
+phaseLabel:SetTextColor(0.85, 0.85, 0.85)
+
+local phaseButtons = {}
+local function refreshPhaseHighlight()
+    local cur = (BearChadDB and BearChadDB.phase) or "T6"
+    for i, b in ipairs(phaseButtons) do
+        if phaseList[i] == cur then
+            b.bg:SetColorTexture(0.4, 0.6, 0.9, 0.7)
+            b.text:SetTextColor(1, 1, 1)
+        else
+            b.bg:SetColorTexture(0.2, 0.2, 0.25, 0.6)
+            b.text:SetTextColor(0.7, 0.7, 0.7)
+        end
+    end
+end
+
+for i, p in ipairs(phaseList) do
+    local btn = CreateFrame("Button", nil, statsRoot)
+    btn:SetSize(40, 16)
+    btn:SetPoint("LEFT", phaseLabel, "RIGHT", 6 + (i - 1) * 44, 0)
+    btn.bg = btn:CreateTexture(nil, "BACKGROUND")
+    btn.bg:SetAllPoints()
+    btn.bg:SetColorTexture(0.2, 0.2, 0.25, 0.6)
+    btn.text = btn:CreateFontString(nil, "OVERLAY")
+    btn.text:SetFont(TEXT_FONT, 10, "OUTLINE")
+    btn.text:SetPoint("CENTER")
+    btn.text:SetText(p)
+    btn.text:SetTextColor(0.7, 0.7, 0.7)
+    btn:SetScript("OnClick", function()
+        BearChadDB = BearChadDB or {}
+        BearChadDB.phase = p
+        refreshPhaseHighlight()
+        if statsRoot:IsShown() then
+            updateStats()
+            refreshChadLine()
+        end
+    end)
+    attachTooltip(btn, "Tier " .. p,
+        "Compare your stats against typical raid-buffed bear targets for tier " .. p .. ". Affects the grey hint values on HP, Armor, and Dodge rows.")
+    phaseButtons[i] = btn
+end
+
+local statsSections = {
+    {
+        header = "SURVIVAL",
+        color  = { 0.4, 0.7, 1 },
+        rows = {
+            { key = "critR",   label = "Crit Reduction", bar = true,
+              tipTitle = "Crit Reduction (cap 5.60%)",
+              tipBody  = "Bosses cannot crit you above 5.60%. Combines defense skill (above 350), resilience, and Survival of the Fittest talent. UNCRITTABLE = no boss criticals on you." },
+            { key = "defense", label = "Defense",
+              tipTitle = "Defense Skill",
+              tipBody  = "Each defense skill above 350 = 0.04% crit reduction vs lvl 73 boss. 415 skill alone gives 2.6%. 2.36 rating = 1 skill at level 70." },
+            { key = "resil",   label = "Resilience",
+              tipTitle = "Resilience",
+              tipBody  = "39.4 resilience = 1% crit reduction. Useful only as a fungible substitute for defense to hit the crit cap. Otherwise dead stat for PvE." },
+            { key = "hp",      label = "Health / EHP",
+              tipTitle = "Health / Effective HP",
+              tipBody  = "EHP factors armor mitigation: HP / (1 - armor%). Higher EHP = more physical damage you can absorb before dying." },
+            { key = "armor",   label = "Armor",
+              tipTitle = "Armor",
+              tipBody  = "Reduces physical damage. Cap is 75% reduction at ~35,880 armor vs lvl 73. Formula: armor / (armor + 11960)." },
+            { key = "dodge",   label = "Dodge",
+              tipTitle = "Dodge",
+              tipBody  = "Bear's primary mitigation — bears can't parry/block. ~14.7 Agility per 1% dodge in form. Sunwell Radiance subtracts 20% in P5 (toggle above)." },
+        },
+    },
+    {
+        header = "THREAT",
+        color  = { 1, 0.7, 0.3 },
+        rows = {
+            { key = "hit",     label = "Hit", bar = true,
+              tipTitle = "Hit % (cap 9% / 6% w/ iFF)",
+              tipBody  = "Threat optimization. Cap = 9% (or 6% with Improved Faerie Fire in raid) for special attacks. Below cap, some Mangles/Lacerates miss." },
+            { key = "expert",  label = "Expertise", bar = true,
+              tipTitle = "Expertise (cap 26 skill)",
+              tipBody  = "Threat optimization. Cap = 26 expertise skill (eliminates the 6.5% chance bosses dodge attacks from the front). 3.94 rating = 1 skill." },
+            { key = "crit",    label = "Crit Chance",
+              tipTitle = "Melee Crit Chance",
+              tipBody  = "Your own chance to crit on melee attacks. Bear Mangle/Maul crits scale damage and threat heavily. No cap — more is better. Includes form, talent, and gear contributions." },
+        },
+    },
+    {
+        header = "RAW STATS",
+        color  = { 0.7, 0.7, 0.7 },
+        rows = {
+            { key = "raw", label = "Base",
+              tipTitle = "Base Stats",
+              tipBody  = "Stamina, Agility, and Attack Power. 1 Sta ≈ 17 HP raid-buffed. ~14.7 Agility = 1% dodge in form. AP scales bear threat directly." },
+        },
+    },
+}
+
+local statsRowMap = {}
+local statsBarMap = {}
+local yPos = -72
+local zebraI = 0
+
+for _, section in ipairs(statsSections) do
+    local hdr = statsRoot:CreateFontString(nil, "OVERLAY")
+    hdr:SetFont(TEXT_FONT, 10, "OUTLINE")
+    hdr:SetPoint("TOPLEFT", 10, yPos)
+    hdr:SetText(section.header)
+    hdr:SetTextColor(unpack(section.color))
+    yPos = yPos - 14
+
+    -- Thin divider line under section header
+    local div = statsRoot:CreateTexture(nil, "ARTWORK")
+    div:SetPoint("TOPLEFT", 10, yPos)
+    div:SetPoint("TOPRIGHT", -10, yPos)
+    div:SetHeight(1)
+    div:SetColorTexture(section.color[1], section.color[2], section.color[3], 0.3)
+    yPos = yPos - 3
+
+    for _, r in ipairs(section.rows) do
+        zebraI = zebraI + 1
+        local rowH = r.bar and 22 or 18
+
+        local rowFrame = CreateFrame("Frame", nil, statsRoot)
+        rowFrame:SetPoint("TOPLEFT", statsRoot, "TOPLEFT", 6, yPos)
+        rowFrame:SetPoint("TOPRIGHT", statsRoot, "TOPRIGHT", -6, yPos)
+        rowFrame:SetHeight(rowH)
+
+        if zebraI % 2 == 0 then
+            local zebra = rowFrame:CreateTexture(nil, "BACKGROUND")
+            zebra:SetAllPoints()
+            zebra:SetColorTexture(1, 1, 1, 0.04)
+        end
+
+        local lbl = rowFrame:CreateFontString(nil, "OVERLAY")
+        lbl:SetFont(TEXT_FONT, 11, "OUTLINE")
+        lbl:SetPoint("TOPLEFT", 4, -2)
+        lbl:SetText(r.label)
+        lbl:SetTextColor(0.78, 0.78, 0.78)
+
+        local val = rowFrame:CreateFontString(nil, "OVERLAY")
+        val:SetFont(TEXT_FONT, 11, "OUTLINE")
+        val:SetPoint("TOPRIGHT", -4, -2)
+        val:SetText("--")
+        val:SetTextColor(1, 1, 1)
+        val:SetJustifyH("RIGHT")
+
+        if r.bar then
+            local bar = CreateFrame("StatusBar", nil, rowFrame)
+            bar:SetPoint("BOTTOMLEFT", 4, 1)
+            bar:SetPoint("BOTTOMRIGHT", -4, 1)
+            bar:SetHeight(3)
+            bar:SetMinMaxValues(0, 1)
+            bar:SetStatusBarTexture(BAR_TEX)
+            local barBg = bar:CreateTexture(nil, "BACKGROUND")
+            barBg:SetAllPoints()
+            barBg:SetColorTexture(0.15, 0.15, 0.15, 0.7)
+            statsBarMap[r.key] = bar
+        end
+
+        attachTooltip(rowFrame, r.tipTitle or r.label, r.tipBody or "")
+        statsRowMap[r.key] = val
+        yPos = yPos - rowH
+    end
+
+    yPos = yPos - 6
+end
+
+local function getSotFRank()
+    if not GetNumTalents or not GetTalentInfo then return 0 end
+    for i = 1, GetNumTalents(2) do
+        local n, _, _, _, rank = GetTalentInfo(2, i)
+        if n == "Survival of the Fittest" then return rank or 0 end
+    end
+    return 0
+end
+
+local function fmtN(n) return BreakUpLargeNumbers and BreakUpLargeNumbers(n) or tostring(n) end
+
+-- Hit and expertise rating-per-skill in TBC (level 70).
+local HIT_RATING_PER_PCT = 15.77   -- 15.77 melee hit rating = 1% hit
+local EXP_RATING_PER_SKILL = 3.94  -- 3.94 expertise rating = 1 expertise skill
+local DEF_RATING_PER_SKILL = 2.36  -- 2.36 defense rating = 1 defense skill
+local RES_PER_PCT_CRIT_REDUCTION = 39.4  -- 39.4 resilience = 1% crit reduction taken
+
+function updateStats()
+    -- Defense skill
+    local defBase, defMod = UnitDefense("player")
+    local defSkill = (defBase or 0) + (defMod or 0)
+    local defRating = GetCombatRating and GetCombatRating(2) or 0
+
+    -- Crit reduction = defense skill + resilience + Survival of the Fittest
+    local critFromDef = math.max(0, (defSkill - 350) * 0.04)
+    local critFromRes = (GetCombatRatingBonus and GetCombatRatingBonus(15)) or 0
+    local sotf = getSotFRank()  -- 1% per rank in TBC
+    local critTotal = critFromDef + critFromRes + sotf
+    local uncrit = critTotal >= 5.6
+    if uncrit then
+        statsRowMap.critR:SetText(("|cff20ff20%.2f%%   UNCRITTABLE|r"):format(critTotal))
+    else
+        statsRowMap.critR:SetText(("|cffff4040%.2f%%   NEED %.2f%%|r"):format(critTotal, 5.6 - critTotal))
+    end
+    if statsBarMap.critR then
+        statsBarMap.critR:SetMinMaxValues(0, 5.6)
+        statsBarMap.critR:SetValue(math.min(critTotal, 5.6))
+        if uncrit then
+            statsBarMap.critR:SetStatusBarColor(0.2, 0.85, 0.2)
+        else
+            statsBarMap.critR:SetStatusBarColor(0.85, 0.2, 0.2)
+        end
+    end
+
+    -- Health + EHP (factoring armor mitigation only)
+    local hp = UnitHealthMax("player") or 0
+    local _, totalArmor = UnitArmor("player")
+    totalArmor = totalArmor or 0
+    local armorDR = totalArmor / (totalArmor + 11960)
+    if armorDR > 0.75 then armorDR = 0.75 end
+    local ehp = (1 - armorDR) > 0 and math.floor(hp / (1 - armorDR)) or hp
+
+    local phase = (BearChadDB and BearChadDB.phase) or "T6"
+    local tgt = phaseTargets[phase] or {}
+
+    -- HP and EHP color-coded vs the tier target
+    local hpLo, hpHi = parseRange(tgt.hp)
+    local ehpLo, ehpHi = parseRange(tgt.ehp)
+    local hpClr  = colorFor(hp, hpLo, hpHi)
+    local ehpClr = colorFor(ehp, ehpLo, ehpHi)
+    statsRowMap.hp:SetText(("|cff%s%s|r / |cff%s%s|r   |cffaaaaaa%s: %s / %s|r"):format(
+        hpClr, fmtN(hp), ehpClr, fmtN(ehp), phase, tgt.hp or "?", tgt.ehp or "?"))
+
+    -- Armor color-coded vs the tier target
+    local arLo, arHi = parseRange(tgt.armor)
+    local arClr = colorFor(totalArmor, arLo, arHi)
+    statsRowMap.armor:SetText(("|cff%s%s|r   %.1f%%   |cffaaaaaa%s: %s|r"):format(
+        arClr, fmtN(totalArmor), armorDR * 100, phase, tgt.armor or "?"))
+
+    -- Dodge: color-coded vs tier target.
+    local dodge = GetDodgeChance and GetDodgeChance() or 0
+    local doLo, doHi = parseRange(tgt.dodge)
+    local doClr = colorFor(dodge, doLo, doHi)
+    statsRowMap.dodge:SetText(("|cff%s%.2f%%|r   |cffaaaaaa%s: %s|r"):format(doClr, dodge, phase, tgt.dodge or "?"))
+
+    -- Hit (yellow/specials cap = 9%, or 6% with Improved Faerie Fire toggle).
+    local hitPct = (GetCombatRatingBonus and GetCombatRatingBonus(6)) or 0
+    local hitRating = GetCombatRating and GetCombatRating(6) or 0
+    local hitCap = 9
+    if hitPct >= hitCap then
+        statsRowMap.hit:SetText(("|cff20ff20%.2f%%   CAPPED|r"):format(hitPct))
+    else
+        local needRating = math.ceil((hitCap - hitPct) * HIT_RATING_PER_PCT)
+        statsRowMap.hit:SetText(("|cffffd040%.2f%%   +%d rating to cap|r"):format(hitPct, needRating))
+    end
+    if statsBarMap.hit then
+        statsBarMap.hit:SetMinMaxValues(0, hitCap)
+        statsBarMap.hit:SetValue(math.min(hitPct, hitCap))
+        if hitPct >= hitCap then
+            statsBarMap.hit:SetStatusBarColor(0.2, 0.85, 0.2)
+        else
+            statsBarMap.hit:SetStatusBarColor(1, 0.82, 0.2)
+        end
+    end
+
+    -- Expertise (cap = 26 skill = 6.5% dodge eliminated). Threat-optim.
+    local expSkill = GetExpertise and GetExpertise() or 0
+    local expRating = GetCombatRating and GetCombatRating(24) or 0
+    if expSkill >= 26 then
+        statsRowMap.expert:SetText(("|cff20ff2026/26   CAPPED|r"))
+    else
+        local needRating = math.ceil((26 - expSkill) * EXP_RATING_PER_SKILL)
+        statsRowMap.expert:SetText(("|cffffd040%d/26   +%d rating to cap|r"):format(expSkill, needRating))
+    end
+    if statsBarMap.expert then
+        statsBarMap.expert:SetMinMaxValues(0, 26)
+        statsBarMap.expert:SetValue(math.min(expSkill, 26))
+        if expSkill >= 26 then
+            statsBarMap.expert:SetStatusBarColor(0.2, 0.85, 0.2)
+        else
+            statsBarMap.expert:SetStatusBarColor(1, 0.82, 0.2)
+        end
+    end
+
+    -- Crit chance (player's own melee crit %, no cap — informational)
+    local critChance = GetCritChance and GetCritChance() or 0
+    statsRowMap.crit:SetText(("%.2f%%"):format(critChance))
+
+    -- Defense skill (color-coded by uncrit status since defense feeds crit reduction)
+    local defColor = uncrit and "ffffff" or "ff4040"
+    statsRowMap.defense:SetText(("|cff%s%d skill   |cffaaaaaa(%d rating)|r"):format(defColor, defSkill, defRating))
+
+    -- Resilience (folds into crit reduction; show rating + its contribution)
+    local resRating = GetCombatRating and GetCombatRating(15) or 0
+    statsRowMap.resil:SetText(("%d rating   |cffaaaaaa(%.2f%% crit red)|r"):format(resRating, critFromRes))
+
+    -- Stam / Agi / AP combined into one row.
+    local sta = select(2, UnitStat("player", 3)) or 0
+    local agi = select(2, UnitStat("player", 2)) or 0
+    local apBase, apPos, apNeg = UnitAttackPower("player")
+    local ap = (apBase or 0) + (apPos or 0) - (apNeg or 0)
+    statsRowMap.raw:SetText(("STA %s  •  AGI %s  •  AP %s"):format(fmtN(sta), fmtN(agi), fmtN(ap)))
+end
+
+-- Chad verdict line at the bottom of the panel.
+local chadLine = statsRoot:CreateFontString(nil, "OVERLAY")
+chadLine:SetFont(TEXT_FONT, 11, "OUTLINE")
+chadLine:SetPoint("BOTTOMLEFT", 10, 10)
+chadLine:SetPoint("BOTTOMRIGHT", -10, 10)
+chadLine:SetWordWrap(true)
+chadLine:SetJustifyH("CENTER")
+chadLine:SetText("")
+
+local function pickChadBucket()
+    local phase = (BearChadDB and BearChadDB.phase) or "T6"
+    local tgt = phaseTargets[phase] or {}
+    local hp = UnitHealthMax("player") or 0
+    local _, totalArmor = UnitArmor("player")
+    totalArmor = totalArmor or 0
+    local dodge = GetDodgeChance and GetDodgeChance() or 0
+
+    local below, above = 0, 0
+    local function score(v, range)
+        local lo, hi = parseRange(range)
+        if v < lo then below = below + 1
+        elseif v > hi then above = above + 1 end
+    end
+    score(hp, tgt.hp)
+    score(totalArmor, tgt.armor)
+    score(dodge, tgt.dodge)
+
+    if below >= 2 then return "below" end
+    if above >= 2 then return "above" end
+    return "close"
+end
+
+function refreshChadLine()
+    local bucket = pickChadBucket()
+    local pool = chadLines[bucket]
+    local pick = pool[math.random(1, #pool)]
+    chadLine:SetText(pick)
+    if bucket == "below" then
+        chadLine:SetTextColor(1, 0.35, 0.35)
+    elseif bucket == "above" then
+        chadLine:SetTextColor(0.35, 0.95, 0.4)
+    else
+        chadLine:SetTextColor(1, 0.75, 0.3)
+    end
+end
+
+statsRoot:SetScript("OnShow", function()
+    BearChadDB = BearChadDB or {}
+    refreshPhaseHighlight()
+    updateStats()
+    refreshChadLine()
+end)
+statsRoot:SetScript("OnUpdate", function(self, elapsed)
+    self._t = (self._t or 0) + elapsed
+    if self._t < 1 then return end
+    self._t = 0
+    updateStats()
+end)
+
+----------------------------------------------------------------------
 -- Rotation logic
 ----------------------------------------------------------------------
 local function maulQueued()
@@ -693,6 +1228,9 @@ boot:SetScript("OnEvent", function(self, ev, arg)
         if BearChadDB.scale then
             root:SetScale(BearChadDB.scale)
         end
+        if BearChadDB.stats then
+            statsRoot:Show()
+        end
     end
 end)
 
@@ -737,8 +1275,18 @@ SlashCmdList.BEARCHAD = function(msg)
             return
         end
         print(("|cff88ccff[BearChad]|r AoE mode: %s"):format(BearChadDB.aoeMode))
+    elseif msg == "stats" then
+        if statsRoot:IsShown() then
+            statsRoot:Hide()
+            BearChadDB.stats = false
+            print("|cff88ccff[BearChad]|r stats panel hidden.")
+        else
+            statsRoot:Show()
+            BearChadDB.stats = true
+            print("|cff88ccff[BearChad]|r stats panel shown.")
+        end
     else
-        print("|cff88ccff[BearChad]|r /bc lock | unlock | reset | scale <0.5-2.5> | aoe <on|off|auto>")
+        print("|cff88ccff[BearChad]|r /bc lock | unlock | reset | scale <0.5-2.5> | aoe <on|off|auto> | stats")
     end
 end
 
