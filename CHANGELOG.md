@@ -12,6 +12,9 @@ All notable changes to BearChad. Format follows [Keep a Changelog](https://keepa
 ### Removed
 - Standalone "CLEARCAST — free GCD" overlay text. The Clearcasting cue is now conveyed by the suggester border flipping cyan during the proc, making the separate label redundant.
 
+### Changed
+- Moving and resizing now require **Shift** to be held. Drag the frame body without Shift and nothing happens; drag the corner grip without Shift and nothing happens. Prevents accidental nudges during combat. Tooltips and `/bc unlock` message updated to reflect the new modifier.
+
 ## [1.4.3] - 2026-04-27
 
 ### Added
