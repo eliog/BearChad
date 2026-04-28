@@ -300,10 +300,15 @@ styleText(hp.text)
 local sug = CreateFrame("Frame", nil, root)
 sug:SetSize(SUG_SIZE, SUG_SIZE)
 sug:SetPoint("TOPLEFT", hp, "BOTTOMLEFT", 0, -8)
-sug.border = sug:CreateTexture(nil, "BACKGROUND")
+sug.border = CreateFrame("Frame", nil, sug, BackdropTemplateMixin and "BackdropTemplate" or nil)
 sug.border:SetPoint("TOPLEFT", -2, 2)
 sug.border:SetPoint("BOTTOMRIGHT", 2, -2)
-sug.border:SetColorTexture(1, 0.82, 0, 0.9)
+sug.border:SetBackdrop({
+    edgeFile = "Interface\\Buttons\\WHITE8x8",
+    edgeSize = 1,
+})
+sug.border:SetBackdropBorderColor(1, 0.82, 0, 1)
+sug.border:SetFrameLevel(sug:GetFrameLevel() - 1)
 sug.icon = sug:CreateTexture(nil, "ARTWORK")
 sug.icon:SetAllPoints()
 sug.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
@@ -381,10 +386,15 @@ for i, name in ipairs(buffSpells) do
     local b = CreateFrame("Frame", nil, buffRow)
     b:SetSize(22, 22)
     b:SetPoint("LEFT", (i - 1) * 26, 0)
-    b.border = b:CreateTexture(nil, "BACKGROUND")
-    b.border:SetPoint("TOPLEFT", -2, 2)
-    b.border:SetPoint("BOTTOMRIGHT", 2, -2)
-    b.border:SetColorTexture(0.8, 0.1, 0.1, 0.9)
+    b.border = CreateFrame("Frame", nil, b, BackdropTemplateMixin and "BackdropTemplate" or nil)
+    b.border:SetPoint("TOPLEFT", -1, 1)
+    b.border:SetPoint("BOTTOMRIGHT", 1, -1)
+    b.border:SetBackdrop({
+        edgeFile = "Interface\\Buttons\\WHITE8x8",
+        edgeSize = 1,
+    })
+    b.border:SetBackdropBorderColor(0.85, 0.15, 0.15, 1)
+    b.border:SetFrameLevel(b:GetFrameLevel() - 1)
     b.border:Hide()
     b.icon = b:CreateTexture(nil, "ARTWORK")
     b.icon:SetAllPoints()
@@ -630,15 +640,20 @@ root:SetScript("OnUpdate", function(self, elapsed)
 
     -- Suggester
     local nextSpell, why = suggestNext()
+    local cc = playerBuff(S.Clearcast)
     if nextSpell == "WAIT" then
         sug.icon:Hide()
-        sug.border:SetColorTexture(0.3, 0.3, 0.3, 0.5)
+        sug.border:SetBackdropBorderColor(0.3, 0.3, 0.3, 1)
     else
         sug.icon:Show()
         local _, _, tex = GetSpellInfo(nextSpell)
         if tex then sug.icon:SetTexture(tex) end
         sug.icon:SetDesaturated(false)
-        sug.border:SetColorTexture(1, 0.82, 0, 0.9)
+        if cc then
+            sug.border:SetBackdropBorderColor(0.4, 0.9, 1, 1)
+        else
+            sug.border:SetBackdropBorderColor(1, 0.82, 0, 1)
+        end
     end
     sug.label:SetText(why or "")
 

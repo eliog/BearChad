@@ -7,6 +7,7 @@ All notable changes to BearChad. Format follows [Keep a Changelog](https://keepa
 ### Changed
 - Bar texture swapped from `Interface\TargetingFrame\UI-StatusBar` to the flatter `Interface\RaidFrame\Raid-Bar-Hp-Fill` for a cleaner, modern look across all four bars (rage, HP, Mangle, Lacerate).
 - Bar text now uses an outlined font (`STANDARD_TEXT_FONT` 11px OUTLINE) so numbers stay legible over bright bar fills (e.g., the rage-cap yellow). Previously the unstroked `GameFontHighlightSmall` washed out on light backgrounds.
+- Suggester icon and buff icons now use a clean 1px backdrop frame outline instead of a solid filled rectangle that looked like painted-on color. The suggester border switches to cyan during a Clearcasting proc so the visual cue is on the icon itself, not a separate floating label.
 
 ## [1.3.3] - 2026-04-27
 
