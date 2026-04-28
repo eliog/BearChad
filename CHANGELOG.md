@@ -2,6 +2,14 @@
 
 All notable changes to BearChad. Format follows [Keep a Changelog](https://keepachangelog.com/), versioning follows [SemVer](https://semver.org/).
 
+## [1.4.3] - 2026-04-27
+
+### Added
+- Bash to the cooldown row (positioned after Growl). The interrupt/stun is part of a tank's job and now visible at a glance alongside the other defensive cooldowns.
+
+### Changed
+- Frame width increased from 330 to 350 so the 8 cooldown icons keep comfortable spacing. Rage / HP / Mangle / Lacerate bars widen proportionally to match.
+
 ## [1.4.2] - 2026-04-27
 
 ### Changed

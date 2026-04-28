@@ -20,6 +20,7 @@ local S = {
     Barkskin    = GetSpellInfo(22812) or "Barkskin",
     FrenziedReg = GetSpellInfo(22842) or "Frenzied Regeneration",
     Growl       = GetSpellInfo(6795)  or "Growl",
+    Bash        = GetSpellInfo(8983)  or "Bash",
     ChalRoar    = GetSpellInfo(5209)  or "Challenging Roar",
     BearForm    = GetSpellInfo(9634)  or "Dire Bear Form",
     Clearcast   = GetSpellInfo(16870) or "Clearcasting",
@@ -211,7 +212,7 @@ end
 -- UI: anchor frame
 ----------------------------------------------------------------------
 local PAD = 8
-local FRAME_W = 330
+local FRAME_W = 350
 local SUG_SIZE = 64
 local BAR_GAP = 10
 local FULL_BAR_W = FRAME_W - 2 * PAD
@@ -355,7 +356,7 @@ lac.text:SetText("Lacerate: 0/5")
 local cdRow = CreateFrame("Frame", nil, root)
 cdRow:SetPoint("TOPLEFT", lac, "BOTTOMLEFT", 0, -4)
 cdRow:SetSize(SIDE_BAR_W, 28)
-local cdSpells = { S.Mangle, S.Growl, S.Enrage, S.DemoRoar, S.ChalRoar, S.FrenziedReg, S.Barkskin }
+local cdSpells = { S.Mangle, S.Growl, S.Bash, S.Enrage, S.DemoRoar, S.ChalRoar, S.FrenziedReg, S.Barkskin }
 local cdIcons = {}
 local _CD_ICON, _CD_N = 28, #cdSpells
 local _CD_STRIDE = (SIDE_BAR_W - _CD_ICON) / (_CD_N - 1)
