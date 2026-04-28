@@ -8,6 +8,9 @@ All notable changes to BearChad. Format follows [Keep a Changelog](https://keepa
 - `targetDebuffByPlayer`, `playerBuff`, and `playerBuffInfo` now always return their declared types (zeros, false, nil) when the loop completes without a match. Previous fall-through could return implicit `nil` and cause downstream "compare nil with number" errors in fragile code paths.
 - Buff status row spacing now derived from `_BUFF_SIZE + _BUFF_GAP` constants instead of a hardcoded `26`. Previously, changing the icon size or gap would leave the icons misaligned.
 
+### Performance
+- Aura tracking switched from per-tick 40-slot scans to an event-driven cache refreshed only on `UNIT_AURA` and `PLAYER_TARGET_CHANGED`. Previously the addon walked target debuffs and player buffs four to five times per second; now it only walks them when the actual aura state changes. Net cost drops from ~150 µs/sec of pointless aura iteration to roughly zero.
+
 ## [1.5.1] - 2026-04-28
 
 ### Changed

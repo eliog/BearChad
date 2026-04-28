@@ -67,35 +67,56 @@ local function spellCD(name)
     return rem > 0 and rem or 0
 end
 
-local function targetDebuffByPlayer(name)
-    -- Walk debuffs and pick the one applied by the player.
-    -- Returns (count, dur, expires); zeros if not found, so callers can skip nil checks.
+-- Aura cache. Refreshed on UNIT_AURA / PLAYER_TARGET_CHANGED events instead of
+-- walking 40 slots per OnUpdate tick. Only tracked names are cached; everything
+-- else is ignored to keep the rebuild cheap.
+local TRACKED_TARGET_DEBUFFS = { S.Mangle, S.Lacerate, S.FFF, S.DemoRoar }
+local TRACKED_PLAYER_BUFFS   = { S.Clearcast, S.MotW, S.Thorns, S.OoC }
+
+local trackedTargetSet, trackedBuffSet = {}, {}
+for _, n in ipairs(TRACKED_TARGET_DEBUFFS) do trackedTargetSet[n] = true end
+for _, n in ipairs(TRACKED_PLAYER_BUFFS)   do trackedBuffSet[n]   = true end
+
+local targetAuras = {}  -- [name] = { count, dur, expires }
+local playerAuras = {}  -- [name] = { dur, expires }
+
+local function rebuildTargetAuras()
+    wipe(targetAuras)
+    if not UnitExists("target") then return end
     for i = 1, 40 do
         local n, _, count, _, dur, expires, source = UnitAura("target", i, "HARMFUL")
-        if not n then return 0, 0, 0 end
-        if n == name and source == "player" then
-            return (count or 0), (dur or 0), (expires or 0)
+        if not n then break end
+        if source == "player" and trackedTargetSet[n] then
+            targetAuras[n] = { count = count or 0, dur = dur or 0, expires = expires or 0 }
         end
     end
-    return 0, 0, 0
+end
+
+local function rebuildPlayerAuras()
+    wipe(playerAuras)
+    for i = 1, 40 do
+        local n, _, _, _, dur, expires = UnitAura("player", i, "HELPFUL")
+        if not n then break end
+        if trackedBuffSet[n] then
+            playerAuras[n] = { dur = dur or 0, expires = expires or 0 }
+        end
+    end
+end
+
+local function targetDebuffByPlayer(name)
+    local e = targetAuras[name]
+    if not e then return 0, 0, 0 end
+    return e.count, e.dur, e.expires
 end
 
 local function playerBuff(name)
-    for i = 1, 40 do
-        local n = UnitAura("player", i, "HELPFUL")
-        if not n then return false end
-        if n == name then return true end
-    end
-    return false
+    return playerAuras[name] ~= nil
 end
 
 local function playerBuffInfo(name)
-    for i = 1, 40 do
-        local n, _, _, _, dur, expires = UnitAura("player", i, "HELPFUL")
-        if not n then return nil end
-        if n == name then return dur or 0, expires or 0 end
-    end
-    return nil
+    local e = playerAuras[name]
+    if not e then return nil end
+    return e.dur, e.expires
 end
 
 local function inBearForm()
@@ -1234,6 +1255,25 @@ boot:SetScript("OnEvent", function(self, ev, arg)
         end
         if BearChadDB.stats then
             statsRoot:Show()
+        end
+    elseif ev == "PLAYER_LOGIN" then
+        rebuildPlayerAuras()
+        rebuildTargetAuras()
+    end
+end)
+
+-- Aura cache refresh: only fires on real changes, not every OnUpdate tick.
+local auraEvents = CreateFrame("Frame")
+auraEvents:RegisterEvent("UNIT_AURA")
+auraEvents:RegisterEvent("PLAYER_TARGET_CHANGED")
+auraEvents:SetScript("OnEvent", function(_, ev, unit)
+    if ev == "PLAYER_TARGET_CHANGED" then
+        rebuildTargetAuras()
+    elseif ev == "UNIT_AURA" then
+        if unit == "target" then
+            rebuildTargetAuras()
+        elseif unit == "player" then
+            rebuildPlayerAuras()
         end
     end
 end)
