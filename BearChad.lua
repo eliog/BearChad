@@ -42,6 +42,8 @@ local AOE_CL_WINDOW     = 5.0  -- combat-log GUID retention (s)
 local AOE_UP_DEBOUNCE   = 0.5  -- ST -> AoE: count must hold for this long
 local AOE_DOWN_DEBOUNCE = 2.5  -- AoE -> ST: count must drop for this long
 local DEMO_REFRESH      = 5    -- refresh Demo Roar when <= this many seconds left
+local BUFF_WARN         = 60   -- buff countdown appears when <= this many seconds
+local BUFF_FLASH        = 30   -- pulse red border when <= this many seconds
 
 ----------------------------------------------------------------------
 -- Helpers
@@ -69,6 +71,14 @@ local function playerBuff(name)
         local n = UnitAura("player", i, "HELPFUL")
         if not n then return false end
         if n == name then return true end
+    end
+end
+
+local function playerBuffInfo(name)
+    for i = 1, 40 do
+        local n, _, _, _, dur, expires = UnitAura("player", i, "HELPFUL")
+        if not n then return nil end
+        if n == name then return dur or 0, expires or 0 end
     end
 end
 
@@ -341,8 +351,8 @@ for i, name in ipairs(buffSpells) do
     b.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
     local _, _, tex = GetSpellInfo(name)
     if tex then b.icon:SetTexture(tex) end
-    b.text = b:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    b.text:SetPoint("BOTTOM", 0, -10)
+    b.text = b:CreateFontString(nil, "OVERLAY", "NumberFontNormal")
+    b.text:SetPoint("CENTER")
     b.spell = name
     buffIcons[i] = b
 end
@@ -513,14 +523,35 @@ root:SetScript("OnUpdate", function(self, elapsed)
         end
     end
 
-    -- Buff status row: bright icon if up, dim + red border if missing.
+    -- Buff status row: bright if up & fresh, yellow countdown when expiring,
+    -- red-border flash inside flash window, dim+red-border when missing.
+    local pulseOn = (math.floor(GetTime() * 2.5) % 2) == 0
     for _, b in ipairs(buffIcons) do
-        if playerBuff(b.spell) then
-            b.icon:SetVertexColor(1, 1, 1)
-            b.border:Hide()
+        local _, expires = playerBuffInfo(b.spell)
+        if expires and expires > 0 then
+            local left = expires - GetTime()
+            if left > BUFF_WARN then
+                b.icon:SetVertexColor(1, 1, 1)
+                b.border:Hide()
+                b.text:SetText("")
+            elseif left > BUFF_FLASH then
+                -- yellow warning + countdown, no flash
+                b.icon:SetVertexColor(1, 0.9, 0.5)
+                b.border:Hide()
+                b.text:SetText(("%d"):format(math.ceil(left)))
+                b.text:SetTextColor(1, 0.9, 0.3)
+            else
+                -- urgent: pulsing red border + countdown
+                b.icon:SetVertexColor(1, 0.55, 0.55)
+                b.border:SetShown(pulseOn)
+                b.text:SetText(("%d"):format(math.ceil(left)))
+                b.text:SetTextColor(1, 0.4, 0.4)
+            end
         else
+            -- buff missing: steady red border, dim icon
             b.icon:SetVertexColor(0.35, 0.35, 0.35)
             b.border:Show()
+            b.text:SetText("")
         end
     end
 
