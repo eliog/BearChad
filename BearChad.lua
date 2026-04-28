@@ -47,6 +47,14 @@ local BUFF_FLASH        = 30   -- pulse red border when <= this many seconds
 
 -- Visual constants
 local BAR_TEX           = "Interface\\RaidFrame\\Raid-Bar-Hp-Fill"
+local TEXT_FONT         = STANDARD_TEXT_FONT
+local TEXT_SIZE         = 11
+local TEXT_FLAGS        = "OUTLINE"
+
+local function styleText(fs)
+    fs:SetFont(TEXT_FONT, TEXT_SIZE, TEXT_FLAGS)
+    fs:SetTextColor(1, 1, 1)
+end
 
 ----------------------------------------------------------------------
 -- Helpers
@@ -272,6 +280,7 @@ rageBg:SetAllPoints()
 rageBg:SetColorTexture(0.1, 0.1, 0.1, 0.8)
 rage.text = rage:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
 rage.text:SetPoint("CENTER")
+styleText(rage.text)
 
 -- HP bar (full width, below rage)
 local hp = CreateFrame("StatusBar", nil, root)
@@ -285,6 +294,7 @@ hpBg:SetAllPoints()
 hpBg:SetColorTexture(0.1, 0.1, 0.1, 0.8)
 hp.text = hp:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
 hp.text:SetPoint("CENTER")
+styleText(hp.text)
 
 -- Suggester (next-ability icon, left side under bars)
 local sug = CreateFrame("Frame", nil, root)
@@ -317,6 +327,7 @@ mBg:SetAllPoints()
 mBg:SetColorTexture(0.1, 0.1, 0.1, 0.8)
 mangle.text = mangle:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
 mangle.text:SetPoint("CENTER")
+styleText(mangle.text)
 mangle.text:SetText("Mangle: --")
 
 -- Lacerate stacks + timer (right of suggester, below mangle)
@@ -331,6 +342,7 @@ lBg:SetAllPoints()
 lBg:SetColorTexture(0.1, 0.1, 0.1, 0.8)
 lac.text = lac:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
 lac.text:SetPoint("CENTER")
+styleText(lac.text)
 lac.text:SetText("Lacerate: 0/5")
 
 -- Cooldown row (FFF, Demo Roar, Enrage, Barkskin, Frenzied Regen, Growl)
