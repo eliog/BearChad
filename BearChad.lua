@@ -415,21 +415,15 @@ for i, name in ipairs(buffSpells) do
     buffIcons[i] = b
 end
 
--- Maul-queued indicator (pulses when Maul is on next swing)
-local maul = root:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-maul:SetPoint("TOP", root, "TOP", 0, -2)
+-- Maul-queued indicator (small overlay near the rage bar; off-GCD so unobtrusive).
+local maul = root:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+maul:SetPoint("RIGHT", rage, "RIGHT", -6, 0)
 maul:SetText("")
 maul:SetTextColor(1, 0.6, 0.1)
 
--- Clearcasting glow
-local ccText = root:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-ccText:SetPoint("BOTTOM", sug, "TOP", 0, 4)
-ccText:SetText("")
-ccText:SetTextColor(0.4, 0.9, 1)
-
--- Form warning
+-- Form warning (large, anchored over the suggester icon — most critical alert).
 local formWarn = root:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-formWarn:SetPoint("CENTER", root, "CENTER", 0, 40)
+formWarn:SetPoint("CENTER", sug, "CENTER", 0, 0)
 formWarn:SetText("")
 formWarn:SetTextColor(1, 0.2, 0.2)
 
@@ -639,9 +633,6 @@ root:SetScript("OnUpdate", function(self, elapsed)
     else
         maul:SetText("")
     end
-
-    -- Clearcasting
-    ccText:SetText(playerBuff(S.Clearcast) and "CLEARCAST — free GCD" or "")
 
     -- Form warning (only meaningful in combat)
     if UnitAffectingCombat("player") and not inBearForm() then

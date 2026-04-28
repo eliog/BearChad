@@ -6,6 +6,11 @@ All notable changes to BearChad. Format follows [Keep a Changelog](https://keepa
 
 ### Changed
 - Frame backdrop upgraded from a flat 35% transparent black rectangle to a proper 85% opaque dark backdrop with a 1px black border outline. The frame no longer looks like it's floating against the world.
+- "MAUL QUEUED" indicator demoted from a large floating overlay at the top of the frame to a small label inside the rage bar (off-GCD — doesn't deserve top-of-frame real estate).
+- Form warning ("NOT IN BEAR FORM") reanchored to overlay the suggester icon directly. The previous anchor (frame center + 40) put it floating above the bars, which was easy to miss when the frame was in a busy spot on screen.
+
+### Removed
+- Standalone "CLEARCAST — free GCD" overlay text. The Clearcasting cue is now conveyed by the suggester border flipping cyan during the proc, making the separate label redundant.
 
 ## [1.4.3] - 2026-04-27
 
