@@ -2,6 +2,21 @@
 
 All notable changes to BearChad. Format follows [Keep a Changelog](https://keepachangelog.com/), versioning follows [SemVer](https://semver.org/).
 
+## [1.3.0] - 2026-04-27
+
+### Added
+- **Buff status row** for Mark of the Wild, Thorns, and Omen of Clarity. Icons display in full color when the buff is up and dim grey with a red border when missing.
+- **Buff expiration warnings.** Yellow icon tint and countdown numeral when ≤60 seconds remain; pulsing red border and red-tinted icon when ≤30 seconds remain.
+- **Health bar** beneath the rage bar, full-width, with green / yellow / red thresholds at 50% and 30%.
+
+### Changed
+- **Layout overhaul.** Rage and HP bars span the full frame width with text overlaid inside the bars. Suggester icon stays on the left; Mangle and Lacerate bars sit to its right; cooldown row tucked under Lacerate to share the right column. Buff row right-aligned under the cooldowns.
+- All bar and label text switched from yellow (`GameFontNormalSmall`) to white (`GameFontHighlightSmall`) for readability.
+- Frame height reduced from 180 to 150.
+
+### Fixed
+- **Wait state visual ambiguity.** When the suggester recommended waiting for auto-attacks to build rage, it previously showed the Maul icon — visually indistinguishable from the "queue Maul (rage dump)" recommendation. Now shows a desaturated auto-attack icon to make the two states distinct.
+
 ## [1.2.0] - 2026-04-27
 
 ### Fixed
