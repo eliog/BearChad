@@ -28,6 +28,7 @@ local S = {
 local LACERATE_DURATION = 15  -- seconds
 local LACERATE_REFRESH  = 4   -- refresh when <=4s left
 local MANGLE_REFRESH    = 2   -- pre-cast inside last 2s
+local FFF_REFRESH       = 3   -- refresh FFF debuff (40s) when <=3s left
 local RAGE_MAUL         = 30  -- queue Maul above this rage
 local RAGE_CAP_WARN     = 85  -- flash bar above this
 
@@ -381,8 +382,9 @@ local function suggestSingleTarget()
     if mangleCD <= 0.2 and rageNow >= 15 then
         return S.Mangle, "Mangle on CD"
     end
-    if fffCD <= 0.2 then
-        return S.FFF, "FFF"
+    local fLeft = debuffLeft(S.FFF)
+    if fffCD <= 0.2 and fLeft <= FFF_REFRESH then
+        return S.FFF, fLeft <= 0 and "apply FFF" or "refresh FFF"
     end
     if lacCD <= 0.2 and rageNow >= 13 then
         return S.Lacerate, "Lacerate filler"
@@ -413,9 +415,10 @@ local function suggestAoE()
     if hasValidTarget() and mangleCD <= 0.2 and rageNow >= 15 then
         return S.Mangle, "Mangle on CD"
     end
-    -- 5. FFF on CD.
-    if hasValidTarget() and fffCD <= 0.2 then
-        return S.FFF, "FFF"
+    -- 5. FFF if debuff missing/expiring (single-target, but the threat helps).
+    local fLeft = debuffLeft(S.FFF)
+    if hasValidTarget() and fffCD <= 0.2 and fLeft <= FFF_REFRESH then
+        return S.FFF, fLeft <= 0 and "apply FFF" or "refresh FFF"
     end
     -- 6. Building rage: queue Maul on focus.
     return S.Maul, "queue Maul"
