@@ -2,6 +2,11 @@
 
 All notable changes to BearChad. Format follows [Keep a Changelog](https://keepachangelog.com/), versioning follows [SemVer](https://semver.org/).
 
+## [1.4.4] - 2026-04-27
+
+### Changed
+- Frame backdrop upgraded from a flat 35% transparent black rectangle to a proper 85% opaque dark backdrop with a 1px black border outline. The frame no longer looks like it's floating against the world.
+
 ## [1.4.3] - 2026-04-27
 
 ### Added

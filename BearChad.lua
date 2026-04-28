@@ -219,8 +219,15 @@ local FULL_BAR_W = FRAME_W - 2 * PAD
 local SIDE_BAR_W = FRAME_W - 2 * PAD - SUG_SIZE - BAR_GAP
 local BAR_H = 14
 
-local root = CreateFrame("Frame", "BearChadFrame", UIParent)
+local root = CreateFrame("Frame", "BearChadFrame", UIParent, BackdropTemplateMixin and "BackdropTemplate" or nil)
 root:SetSize(FRAME_W, 150)
+root:SetBackdrop({
+    bgFile = "Interface\\Buttons\\WHITE8x8",
+    edgeFile = "Interface\\Buttons\\WHITE8x8",
+    edgeSize = 1,
+})
+root:SetBackdropColor(0.05, 0.05, 0.07, 0.85)
+root:SetBackdropBorderColor(0, 0, 0, 1)
 root:SetPoint("CENTER", 0, -200)
 root:SetMovable(true)
 root:EnableMouse(true)
@@ -232,10 +239,6 @@ root:SetScript("OnDragStop", function(self)
     BearChadDB = BearChadDB or {}
     BearChadDB.pos = { p, rp, x, y }
 end)
-
-local bg = root:CreateTexture(nil, "BACKGROUND")
-bg:SetAllPoints()
-bg:SetColorTexture(0, 0, 0, 0.35)
 
 -- Resize grip (bottom-right). Drag to scale.
 local grip = CreateFrame("Frame", nil, root)
