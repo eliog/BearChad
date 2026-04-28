@@ -23,6 +23,9 @@ local S = {
     ChalRoar    = GetSpellInfo(5209)  or "Challenging Roar",
     BearForm    = GetSpellInfo(9634)  or "Dire Bear Form",
     Clearcast   = GetSpellInfo(16870) or "Clearcasting",
+    MotW        = GetSpellInfo(26990) or "Mark of the Wild",
+    Thorns      = GetSpellInfo(26992) or "Thorns",
+    OoC         = GetSpellInfo(16864) or "Omen of Clarity",
 }
 
 local LACERATE_DURATION = 15  -- seconds
@@ -187,7 +190,7 @@ end
 -- UI: anchor frame
 ----------------------------------------------------------------------
 local root = CreateFrame("Frame", "BearChadFrame", UIParent)
-root:SetSize(330, 120)
+root:SetSize(330, 140)
 root:SetPoint("CENTER", 0, -200)
 root:SetMovable(true)
 root:EnableMouse(true)
@@ -316,6 +319,32 @@ for i, name in ipairs(cdSpells) do
     b.text:SetPoint("BOTTOM", 0, -10)
     b.spell = name
     cdIcons[i] = b
+end
+
+-- Buff status row (MotW, Thorns, OoC). Bright when up, dim+red border when down.
+local buffRow = CreateFrame("Frame", nil, root)
+buffRow:SetPoint("TOPLEFT", cdRow, "BOTTOMLEFT", 0, -4)
+buffRow:SetSize(240, 22)
+local buffSpells = { S.MotW, S.Thorns, S.OoC }
+local buffIcons = {}
+for i, name in ipairs(buffSpells) do
+    local b = CreateFrame("Frame", nil, buffRow)
+    b:SetSize(22, 22)
+    b:SetPoint("LEFT", (i - 1) * 26, 0)
+    b.border = b:CreateTexture(nil, "BACKGROUND")
+    b.border:SetPoint("TOPLEFT", -2, 2)
+    b.border:SetPoint("BOTTOMRIGHT", 2, -2)
+    b.border:SetColorTexture(0.8, 0.1, 0.1, 0.9)
+    b.border:Hide()
+    b.icon = b:CreateTexture(nil, "ARTWORK")
+    b.icon:SetAllPoints()
+    b.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    local _, _, tex = GetSpellInfo(name)
+    if tex then b.icon:SetTexture(tex) end
+    b.text = b:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    b.text:SetPoint("BOTTOM", 0, -10)
+    b.spell = name
+    buffIcons[i] = b
 end
 
 -- Maul-queued indicator (pulses when Maul is on next swing)
@@ -481,6 +510,17 @@ root:SetScript("OnUpdate", function(self, elapsed)
         else
             b.cd:Clear()
             b.text:SetText("")
+        end
+    end
+
+    -- Buff status row: bright icon if up, dim + red border if missing.
+    for _, b in ipairs(buffIcons) do
+        if playerBuff(b.spell) then
+            b.icon:SetVertexColor(1, 1, 1)
+            b.border:Hide()
+        else
+            b.icon:SetVertexColor(0.35, 0.35, 0.35)
+            b.border:Show()
         end
     end
 
